@@ -1,0 +1,19 @@
+{
+  "name": "javis-fable",
+  "version": "1.0.0",
+  "description": "<h1 align=\"center\">Jarvis</h1> <p align=\"center\"><em>Un assistant vocal incarné par un avatar 3D — qui parle, écoute, ressent, et tourne entièrement sur ta machine.</em></p>",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/do4fun/javis-fable.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/do4fun/javis-fable/issues"
+  },
+  "homepage": "https://github.com/do4fun/javis-fable#readme"
+}
