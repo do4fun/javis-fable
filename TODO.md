@@ -139,10 +139,18 @@ Critères d'acceptation : rendu cohérent jour/nuit (2 presets), aucun
 asset chargé depuis Internet, FPS inchangé à ±10 % par rapport à F1.1.
 ```
 
-### ☐ F1.3 — Comportements autonomes (vie)
+### ☑ F1.3 — Comportements autonomes (vie)
 
 **But :** respiration, clignements, contact visuel, micro-mouvements.
 **Dépend de :** F1.1.
+**Statut :** livré. `web/src/life.js` (`LifeEngine`) délègue clignement/respiration/
+sway/idle à TalkingHead (configurés, non réimplémentés) et complète : suivi du
+regard au pointeur/toucher via `lookAt` + lissage, limites anatomiques, retour
+caméra après 2 s, saccades oculaires, gestes ambiants aléatoires (20–60 s, en
+retrait pendant la parole), clignements accrus en état « réflexion ». Respecte
+`prefers-reduced-motion` (amplitudes réduites). Réglages dans `config.js`.
+**Test manuel :** avatar regardé 60 s sans interaction → aucune pose figée ; le
+regard suit le pointeur/doigt puis revient à la caméra après 2 s.
 
 ```
 PROMPT F1.3
@@ -470,7 +478,7 @@ fonctionnelle ; `make check` passe au vert.
 |F0.2|Serveur FastAPI + WebSocket  |☑     |dev/f0.2-server-ws   |
 |F1.1|TalkingHead + Ready Player Me|☑     |dev/f1.1-avatar      |
 |F1.2|Environnement 3D             |☐     |dev/f1.2-environment |
-|F1.3|Comportements autonomes      |☐     |dev/f1.3-life        |
+|F1.3|Comportements autonomes      |☑     |dev/f1.3-life        |
 |F1.4|Système d’émotions           |☐     |dev/f1.4-emotions    |
 |F2.1|TTS local Kokoro             |☑     |dev/f2.1-tts         |
 |F2.2|Lip-sync précis              |☑     |dev/f2.2-lipsync     |

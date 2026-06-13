@@ -11,6 +11,7 @@ import { Scene } from './scene.js';
 import { AvatarManager } from './avatar.js';
 import { JarvisSocket } from './ws.js';
 import { LipSync } from './lipsync.js';
+import { LifeEngine } from './life.js';
 import { config } from './config.js';
 
 const canvas = document.getElementById('scene');
@@ -32,11 +33,18 @@ let acc = 0;
 
 function frame(now) {
   rafId = requestAnimationFrame(frame);
-  if (!running || avatarActive) return; // TalkingHead a sa propre boucle
+  if (!running) return;
 
   let dt = (now - last) / 1000;
   last = now;
   if (dt > 0.1) dt = 0.1;
+
+  // La vie autonome (suivi du regard) tourne quel que soit le moteur de rendu.
+  life.update(dt);
+
+  // TalkingHead gère son propre rendu ; on ne rend la scène de repli que si
+  // l'avatar n'est pas actif.
+  if (avatarActive) return;
 
   acc += dt * 1000;
   if (minFrameMs > 0 && acc < minFrameMs) return;
@@ -70,6 +78,9 @@ function showBootError(message) {
 // --- Chargement de l'avatar ----------------------------------------------
 const avatar = new AvatarManager(avatarEl, updateBoot);
 const lipsync = new LipSync(avatar);
+const life = new LifeEngine(avatar);
+// Permet aux gestes ambiants de se mettre en retrait pendant la parole.
+avatar.lipsync = lipsync;
 
 // --- WebSocket : réception de l'audio TTS et lip-sync ---------------------
 const socket = new JarvisSocket();
@@ -80,10 +91,8 @@ socket.on('tts_audio', (payload) => {
 });
 
 socket.on('state', (payload) => {
-  if (payload.state === 'idle') {
-    // Fin de parole : on s'assure que la bouche revient au neutre.
-    // (TalkingHead le fait déjà en voie principale ; ceci couvre le secours.)
-  }
+  // Relaie l'état à la vie autonome (ex. clignements accrus en « réflexion »).
+  life.setState(payload.state);
 });
 
 // Barge-in : couper la parole immédiatement.
@@ -108,6 +117,7 @@ window.jarvis = {
   scene,
   socket,
   lipsync,
+  life,
   interrupt,
   say: (text) => socket.send('user_text', { text }),
 };
@@ -120,6 +130,7 @@ async function boot_() {
   if (result.ok) {
     avatarActive = true;
     document.body.classList.add('avatar-active');
+    life.start(); // vie autonome : regard, saccades, gestes ambiants
     hideBoot();
   } else {
     // Repli : on garde la scène placeholder visible et on explique l'erreur.

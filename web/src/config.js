@@ -44,6 +44,28 @@ export const config = {
     cameraView: 'upper', // vue interne TalkingHead au chargement
   },
 
+  // Vie autonome (F1.3). TalkingHead gère nativement clignement/respiration/
+  // sway/idle : on les configure ici, et on complète (suivi du regard, gestes).
+  life: {
+    // Suivi du regard au pointeur/toucher.
+    gaze: {
+      enabled: true,
+      smoothing: 0.12, // lerp vers la cible (0..1)
+      returnAfterMs: 2000, // retour au regard caméra après inactivité
+      maxYawDeg: 35, // limites anatomiques
+      maxPitchDeg: 22,
+    },
+    // Gestes ambiants Mixamo joués aléatoirement (fichiers /public/anims).
+    ambientGestures: {
+      enabled: true,
+      minIntervalMs: 20000,
+      maxIntervalMs: 60000,
+      pool: ['hausse_epaules', 'acquiesce', 'reflechit'],
+    },
+    // Clignements (délégués à TalkingHead ; valeurs indicatives).
+    blink: { minMs: 2000, maxMs: 6000, thinkingFactor: 0.6 },
+  },
+
   // Accès debug : ?debug dans l'URL active les panneaux de réglage (F1.2).
   debug: new URLSearchParams(window.location.search).has('debug'),
 };
