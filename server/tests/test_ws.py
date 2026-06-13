@@ -31,30 +31,39 @@ def test_ws_state_on_connect():
             assert first["payload"]["state"] == "idle"
 
 
-def test_user_text_triggers_speech():
-    # user_text → state:speaking → tts_audio(s) → state:idle (démo « il parle »).
+def test_user_text_triggers_conversation():
+    # user_text → cerveau (repli rule-based, Ollama absent en test) → balises
+    # (emotion/geste) + llm_token + tts_audio → state idle.
     with TestClient(app) as client:
         with client.websocket_connect("/ws") as ws:
             ws.receive_json()  # state initial
             env = Envelope.make(ClientMsg.USER_TEXT, {"text": "Bonjour Jarvis."})
             ws.send_text(env.to_json())
 
-            speaking = ws.receive_json()
-            assert speaking["type"] == ServerMsg.STATE
-            assert speaking["payload"]["state"] == "speaking"
-            assert speaking["id"] == env.id  # id de corrélation préservé
+            types = []
+            payloads = []
+            # On collecte jusqu'à l'état idle final.
+            for _ in range(60):
+                msg = ws.receive_json()
+                types.append(msg["type"])
+                payloads.append(msg)
+                if msg["type"] == ServerMsg.STATE and msg["payload"]["state"] == "idle":
+                    break
 
-            audio = ws.receive_json()
-            assert audio["type"] == ServerMsg.TTS_AUDIO
-            assert audio["payload"]["sample_rate"] > 0
-            assert len(audio["payload"]["audio"]) > 0  # base64 non vide
-            assert len(audio["payload"]["words"]) > 0
-
-            # On consomme jusqu'à l'état idle final.
-            last = audio
-            while last["type"] != ServerMsg.STATE:
-                last = ws.receive_json()
-            assert last["payload"]["state"] == "idle"
+            assert ServerMsg.STATE in types
+            # Le cerveau de repli émet une émotion en tête.
+            assert ServerMsg.EMOTION in types
+            # On a parlé (audio synthétisé).
+            assert ServerMsg.TTS_AUDIO in types
+            # Les balises ne sont jamais dans le texte parlé (llm_token).
+            tokens = "".join(
+                m["payload"].get("token", "")
+                for m in payloads
+                if m["type"] == ServerMsg.LLM_TOKEN
+            )
+            assert "[emo:" not in tokens and "[geste:" not in tokens
+            # État final idle.
+            assert payloads[-1]["payload"]["state"] == "idle"
 
 
 def test_unknown_type_errors():

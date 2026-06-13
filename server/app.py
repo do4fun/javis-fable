@@ -12,6 +12,7 @@ dans les fonctionnalités suivantes (F2.1, F3.x, F4.x, F5.1).
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import logging
 from contextlib import asynccontextmanager
@@ -31,7 +32,15 @@ from core.protocol import (
     Envelope,
     ServerMsg,
 )
+from modules.brain import Brain
 from modules.stt import STTService, make_stt_engine
+from modules.tags import (
+    EmotionEvent,
+    GestureEvent,
+    StreamTagParser,
+    TextEvent,
+    ToolEvent,
+)
 from modules.tts import TTSChunk, TTSService, make_engine
 
 CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
@@ -84,12 +93,20 @@ async def lifespan(app: FastAPI):
     app.state.bus = EventBus()
     app.state.manager = ConnectionManager()
     app.state.config = load_config()
-    # Service TTS (F2.1) et STT (F3.2) : moteurs enfichables, repli automatique.
+    # Services : TTS (F2.1), STT (F3.2), cerveau LLM (F4.1).
     app.state.tts = TTSService(make_engine(app.state.config.get("tts")))
     app.state.stt = STTService(make_stt_engine(app.state.config.get("stt")))
+    app.state.brain = Brain(app.state.config.get("llm"))
 
     # Abonnement bus : un segment de parole (F3.1) → transcription (F3.2).
     app.state.bus.subscribe("speech_segment", _on_speech_segment)
+
+    # Vérifie Ollama sans bloquer le démarrage (repli rule-based sinon).
+    ok, msg = await app.state.brain.available()
+    if ok:
+        log.info("Cerveau Ollama prêt (modèle %s).", app.state.brain.model)
+    else:
+        log.warning("Cerveau LLM indisponible : %s", msg)
 
     log.info(
         "Jarvis démarré (TTS=%s, STT=%s). Frontend attendu dans %s",
@@ -125,16 +142,101 @@ async def _on_speech_segment(payload: dict) -> None:
         await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}))
         return
 
-    # Pousse vers le LLM (F4.1) ; un abonné y répondra. Pour l'instant
-    # (démo « il converse »), on synthétise directement le texte transcrit.
+    # F4.1 : la parole transcrite alimente le cerveau LLM.
     await bus.publish("transcript_final", {"text": text, "ws": ws})
-    if not bus_has_brain(bus):
-        await _speak(ws, text)
+    await _converse(ws, text)
 
 
-def bus_has_brain(bus: EventBus) -> bool:
-    """Vrai si un cerveau LLM est abonné au transcript (branché en F4.1)."""
-    return bool(bus._subs.get("transcript_final"))
+def _cancel_event(ws: WebSocket) -> "asyncio.Event":
+    """Event d'annulation par connexion (barge-in)."""
+    ev = getattr(ws, "_cancel", None)
+    if ev is None:
+        ev = asyncio.Event()
+        ws._cancel = ev
+    return ev
+
+
+async def _converse(ws: WebSocket, text: str, corr_id: str | None = None) -> None:
+    """Tour de parole complet : LLM (streaming + balises) → émotion/geste/TTS.
+
+    - relaie les tokens « propres » au client (``llm_token``) ;
+    - extrait les balises au vol : émotions/gestes → messages dédiés (jamais
+      lus à voix haute) ;
+    - synthétise les phrases complètes au fil de l'eau (latence du 1er son).
+    """
+    if not text.strip():
+        return
+
+    manager: ConnectionManager = ws.app.state.manager
+    brain: Brain = ws.app.state.brain
+    tts: TTSService = ws.app.state.tts
+
+    cancel = _cancel_event(ws)
+    cancel.clear()
+    tts._cancel.clear()  # réarme le TTS (un interrupt précédent a pu l'armer)
+
+    parser = StreamTagParser()
+    sentence = ""
+    spoke = False
+
+    await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "thinking"}, id=corr_id))
+
+    async def flush_sentence(force: bool = False) -> None:
+        nonlocal sentence, spoke
+        chunk = sentence.strip()
+        if not chunk:
+            return
+        # On synthétise quand la phrase est terminée (ponctuation) ou en fin.
+        if not force and chunk[-1] not in ".!?…":
+            return
+        sentence = ""
+        if not spoke:
+            await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "speaking"}))
+            spoke = True
+        async for tts_chunk in tts.stream(chunk):
+            if cancel.is_set():
+                return
+            await manager.send(ws, tts_audio_envelope(tts_chunk))
+
+    try:
+        async for tok in brain.stream(text, cancel=cancel):
+            if cancel.is_set():
+                break
+            for ev in parser.feed(tok):
+                if isinstance(ev, TextEvent):
+                    if ev.text:
+                        await manager.send(
+                            ws, Envelope.make(ServerMsg.LLM_TOKEN, {"token": ev.text})
+                        )
+                        sentence += ev.text
+                        await flush_sentence()
+                elif isinstance(ev, EmotionEvent):
+                    await manager.send(
+                        ws,
+                        Envelope.make(
+                            ServerMsg.EMOTION, {"name": ev.name, "intensity": ev.intensity}
+                        ),
+                    )
+                elif isinstance(ev, GestureEvent):
+                    await manager.send(
+                        ws, Envelope.make(ServerMsg.GESTURE, {"name": ev.name})
+                    )
+                elif isinstance(ev, ToolEvent):
+                    # Les outils sont interprétés en F4.2.
+                    await ws.app.state.bus.publish("tool_call", {"raw": ev.raw, "ws": ws})
+
+        # Reste du tampon → dernière phrase.
+        for ev in parser.flush():
+            if isinstance(ev, TextEvent) and ev.text:
+                await manager.send(ws, Envelope.make(ServerMsg.LLM_TOKEN, {"token": ev.text}))
+                sentence += ev.text
+        if not cancel.is_set():
+            await flush_sentence(force=True)
+    except Exception:
+        log.exception("échec de la conversation")
+        await manager.send(ws, Envelope.make(ServerMsg.ERROR, {"reason": "brain_failed"}))
+    finally:
+        await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}, id=corr_id))
 
 
 def tts_audio_envelope(chunk: TTSChunk, corr_id: str | None = None) -> Envelope:
@@ -238,15 +340,15 @@ async def _handle_message(ws: WebSocket, raw: str) -> None:
     bus: EventBus = ws.app.state.bus
 
     if env.type == ClientMsg.USER_TEXT:
-        # F2.1 (démo « il parle ») : on synthétise directement le texte reçu.
-        # En F4.1, le LLM s'intercalera (texte utilisateur → réponse → TTS).
+        # F4.1 : texte utilisateur → cerveau LLM → balises + TTS.
         text = env.payload.get("text", "")
         log.info("user_text reçu: %r", text)
         await bus.publish("user_text", {"text": text, "ws": ws})
-        await _speak(ws, text, corr_id=env.id)
+        await _converse(ws, text, corr_id=env.id)
 
     elif env.type == ClientMsg.INTERRUPT:
-        # Barge-in : on coupe la synthèse en cours.
+        # Barge-in : on annule la génération LLM ET la synthèse en cours.
+        _cancel_event(ws).set()
         ws.app.state.tts.cancel()
         await bus.publish("interrupt", {"ws": ws})
         await manager.send(

@@ -44,6 +44,7 @@ class ServerMsg:
     VISEMES = "visemes"      # visèmes pour le lip-sync (F2.2)
     TRANSCRIPT = "transcript"  # transcription STT (F3.2)
     EMOTION = "emotion"      # déclenche une émotion d'avatar (F1.4)
+    GESTURE = "gesture"      # déclenche un geste ponctuel (F4.1)
     ERROR = "error"          # erreur lisible côté client
 
 

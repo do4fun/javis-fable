@@ -366,10 +366,21 @@ CPU moderne, zéro appel réseau.
 
 ## PHASE 4 — Intelligence
 
-### ☐ F4.1 — Cerveau Ollama (streaming + balises d’expression)
+### ☑ F4.1 — Cerveau Ollama (streaming + balises d’expression)
 
 **But :** réponses intelligentes, expressives, en flux.
 **Dépend de :** F0.2.
+**Statut :** livré. `server/modules/brain.py` : client Ollama streaming (`/api/chat`),
+vérification de disponibilité au démarrage (message « ollama pull »), persona
+`server/prompts/system.md`, annulation totale sur barge-in. `server/modules/tags.py` :
+parseur de balises en flux (`[emo:]`/`[geste:]`/`[tool:]`) tolérant aux balises
+coupées entre tokens. `server/modules/fallback_brain.py` : repli rule-based
+(salutations, heure/date, capacités). Orchestration `_converse` dans `app.py` :
+tokens propres → `llm_token`, balises → `emotion`/`gesture` (jamais prononcées),
+phrases complètes → TTS au fil de l'eau. Frontend : handler `gesture`.
+**Test manuel :** Ollama lancé (`ollama pull llama3.1:8b`), dire « Bonjour, raconte
+une blague » → l'avatar sourit (`[emo:joie]`) et parle. Sans Ollama : repli
+rule-based audible. `make test` → parseur (balises coupées) + repli validés.
 
 ```
 PROMPT F4.1
@@ -515,7 +526,7 @@ fonctionnelle ; `make check` passe au vert.
 |F2.2|Lip-sync précis              |☑     |dev/f2.2-lipsync     |
 |F3.1|Micro + VAD                  |☑     |dev/f3.1-mic-vad     |
 |F3.2|STT Whisper local            |☑     |dev/f3.2-stt         |
-|F4.1|Cerveau Ollama               |☐     |dev/f4.1-brain       |
+|F4.1|Cerveau Ollama               |☑     |dev/f4.1-brain       |
 |F4.2|Mémoire & outils             |☐     |dev/f4.2-memory      |
 |F5.1|Pipeline temps réel          |☐     |dev/f5.1-pipeline    |
 |F5.2|Interface utilisateur        |☐     |dev/f5.2-ui          |

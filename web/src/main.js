@@ -101,12 +101,17 @@ socket.on('state', (payload) => {
   emotions.setSpeaking(payload.state === 'speaking');
 });
 
-// Bus émotion (F1.4) : {name, intensity} déclenche l'émotion (préparé pour F4.1).
+// Bus émotion (F1.4 / F4.1) : {name, intensity} déclenche l'émotion.
 socket.on('emotion', (payload) => {
   emotions.setEmotion(payload.name, {
     intensity: payload.intensity ?? 1,
     holdMs: payload.holdMs,
   });
+});
+
+// Geste ponctuel émis par le cerveau (F4.1).
+socket.on('gesture', (payload) => {
+  avatar.playGesture?.(payload.name, 2);
 });
 
 // Barge-in : couper la parole immédiatement.

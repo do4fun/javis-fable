@@ -27,3 +27,5 @@ stt: # F3.2
 llm: # F4.1
   host: "http://localhost:11434"
   model: "llama3.1:8b"
+  timeout: 30
+  tutoiement: true
