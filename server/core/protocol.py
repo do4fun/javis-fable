@@ -20,7 +20,6 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # --- Types de messages -------------------------------------------------------
 # On garde de simples constantes de chaînes (sérialisées telles quelles) plutôt
 # qu'une Enum lourde, pour rester lisible côté JSON et côté JS.
@@ -72,7 +71,7 @@ class Envelope(BaseModel):
 
     @classmethod
     def make(cls, type: str, payload: dict[str, Any] | None = None,
-             id: str | None = None) -> "Envelope":
+             id: str | None = None) -> Envelope:
         """Fabrique une enveloppe, en réutilisant un ``id`` de corrélation."""
         data: dict[str, Any] = {"type": type, "payload": payload or {}}
         if id is not None:

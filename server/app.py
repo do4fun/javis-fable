@@ -165,7 +165,9 @@ async def _handle_message(ws: WebSocket, raw: str) -> None:
     try:
         env = Envelope.model_validate_json(raw)
     except Exception:
-        await manager.send(ws, Envelope.make(ServerMsg.ERROR, {"reason": "enveloppe JSON invalide"}))
+        await manager.send(
+            ws, Envelope.make(ServerMsg.ERROR, {"reason": "enveloppe JSON invalide"})
+        )
         return
 
     if env.type not in KNOWN_CLIENT_TYPES:
@@ -184,13 +186,17 @@ async def _handle_message(ws: WebSocket, raw: str) -> None:
 
     elif env.type == ClientMsg.CONFIG:
         log.info("config: %r", env.payload)
-        await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle", "ack": True}, id=env.id))
+        await manager.send(
+            ws, Envelope.make(ServerMsg.STATE, {"state": "idle", "ack": True}, id=env.id)
+        )
 
     elif env.type == ClientMsg.AUDIO_CHUNK:
         event = env.payload.get("event")
         if event == "start":
             ws.state_audio = bytearray()
-            await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "listening"}, id=env.id))
+            await manager.send(
+                ws, Envelope.make(ServerMsg.STATE, {"state": "listening"}, id=env.id)
+            )
         elif event == "end":
             audio = bytes(getattr(ws, "state_audio", b""))
             ws.state_audio = bytearray()

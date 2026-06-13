@@ -523,10 +523,21 @@ Critères d'acceptation : utilisable au clavier seul ; lisible sur un
 écran 360 px de large ; aucun texte tronqué en français.
 ```
 
-### ☐ F5.3 — Performance, packaging & démarrage en un clic
+### ☑ F5.3 — Performance, packaging & démarrage en un clic
 
 **But :** le projet se lance simplement et tient sur du matériel modeste.
 **Dépend de :** toutes les phases.
+**Statut :** livré. `web/src/quality.js` : profils auto (low/medium/high) selon
+GPU/CPU → pixelRatio, ombres, fréquence LifeEngine, poussière (cible ≥ 30 fps
+mobile), appliqués au démarrage, réglage utilisateur prioritaire. `scripts/start.py`
++ `start.ps1` + `make start` : vérifs pédagogiques (Node, venv, build, Ollama,
+modèles), lancement serveur + ouverture navigateur. `docker-compose.yml` +
+`server/Dockerfile` (serveur + Ollama, volumes poids, GPU optionnel documenté).
+Suite qualité : `make check` (ESLint + vitest + build web ; ruff + pytest serveur),
+`.pre-commit-config.yaml`, test de fumée Playwright optionnel (`web/test/e2e`).
+`docs/architecture.md` : schéma pipeline, protocole WS complet, budgets latence,
+matrice navigateurs.
+**Test manuel :** `make start` → conversation fonctionnelle ; `make check` → vert.
 
 ```
 PROMPT F5.3
@@ -569,6 +580,6 @@ fonctionnelle ; `make check` passe au vert.
 |F4.2|Mémoire & outils             |☑     |dev/f4.2-memory      |
 |F5.1|Pipeline temps réel          |☑     |dev/f5.1-pipeline    |
 |F5.2|Interface utilisateur        |☑     |dev/f5.2-ui          |
-|F5.3|Perf & packaging             |☐     |dev/f5.3-packaging   |
+|F5.3|Perf & packaging             |☑     |dev/f5.3-packaging   |
 
 **Ordre recommandé :** F0.1 → F0.2 → F1.1 → F2.1 → F2.2 (démo « il parle ») → F1.3 → F1.4 → F3.1 → F3.2 → F4.1 (démo « il converse ») → F4.2 → F5.1 → F5.2 → F5.3.

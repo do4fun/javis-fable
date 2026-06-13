@@ -268,7 +268,9 @@ class Pipeline:
             if state["full"].strip():
                 self.memory.add_turn("assistant", state["full"].strip())
             self._maybe_summarize()
-            await self.set_state(ws, State.IDLE, {"trace": turn.trace_id, "metrics": turn.metrics()})
+            await self.set_state(
+                ws, State.IDLE, {"trace": turn.trace_id, "metrics": turn.metrics()}
+            )
 
     async def _dispatch_event(self, ws, ev, speak_text) -> None:
         if isinstance(ev, TextEvent):

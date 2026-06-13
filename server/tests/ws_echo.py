@@ -36,7 +36,7 @@ async def main(text: str) -> None:
             for _ in range(3):
                 msg = await asyncio.wait_for(ws.recv(), timeout=2.0)
                 print("←", msg)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
 
 

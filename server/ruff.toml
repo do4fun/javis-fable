@@ -1,0 +1,14 @@
+# Configuration ruff pour le serveur Jarvis (F5.3).
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "W", "UP", "B"]
+ignore = [
+    "E402",  # imports après sys.path.insert dans les tests
+    "B008",  # appels dans les valeurs par défaut (Depends/Field FastAPI)
+    "B905",  # zip() sans strict= : nos itérables sont de longueur garantie
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["E402"]

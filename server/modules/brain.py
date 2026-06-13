@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -38,7 +39,9 @@ class BrainUnavailable(Exception):
 class Brain:
     def __init__(self, cfg: dict | None = None) -> None:
         cfg = cfg or {}
-        self.host = cfg.get("host", "http://localhost:11434").rstrip("/")
+        # La variable d'env (Docker compose) prime sur la config.
+        host = os.environ.get("JARVIS_OLLAMA_HOST") or cfg.get("host", "http://localhost:11434")
+        self.host = host.rstrip("/")
         self.model = cfg.get("model", "llama3.1:8b")
         self.timeout = float(cfg.get("timeout", 30))
         self.system_prompt = self._load_prompt()

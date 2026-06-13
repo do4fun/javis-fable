@@ -65,9 +65,6 @@ Le détail du protocole et des budgets de latence vivra dans
 
 ## 🚀 Démarrage rapide
 
-> Le scaffolding arrive avec les fonctionnalités **F0.1** et **F0.2**.
-> Cette section sera complétée au fur et à mesure ; voici la cible.
-
 ### Prérequis
 
 - Node.js 20+ et Python 3.11+
@@ -75,7 +72,7 @@ Le détail du protocole et des budgets de latence vivra dans
 - ~6 Go d’espace disque pour les modèles (Whisper, Kokoro, VAD, LLM)
 - GPU recommandé mais non obligatoire (le projet s’adapte au CPU)
 
-### Installation (cible F5.3)
+### Installation
 
 ```bash
 git clone -b dev https://github.com/<ton-org>/jarvis-fable.git
@@ -84,12 +81,29 @@ cd jarvis-fable
 # 1. Récupère le modèle de langage local
 ollama pull llama3.1:8b        # ou le modèle défini dans server/config.yaml
 
-# 2. Lance tout (vérifie venv, modèles, Ollama, puis ouvre le navigateur)
-make start
+# 2. Lance tout (vérifie venv, build, modèles, Ollama, puis ouvre le navigateur)
+make start                     # ou, sous Windows :  ./start.ps1
 ```
 
-Le premier lancement télécharge **une seule fois** les poids des modèles ;
-ensuite, tout fonctionne **hors-ligne**.
+Le script `make start` (= `python scripts/start.py`) vérifie les prérequis avec
+des messages clairs, build le frontend si besoin, puis lance le serveur sur
+<http://localhost:8000>. Le premier lancement télécharge **une seule fois** les
+poids des modèles ; ensuite, tout fonctionne **hors-ligne**.
+
+> Sans modèles (Kokoro/Whisper/Silero) ni Ollama, Jarvis démarre quand même et
+> bascule sur ses **replis** (voix de synthèse factice, cerveau rule-based) :
+> pratique pour développer. Voir [`docs/install.md`](./docs/install.md) pour
+> activer les vrais modèles, et [`docs/avatar.md`](./docs/avatar.md) pour
+> l’avatar Ready Player Me.
+
+### Développement & qualité
+
+```bash
+make check        # ESLint + vitest + build (web) ; ruff + pytest (serveur)
+```
+
+Détails du pipeline, du protocole WebSocket et des budgets de latence dans
+[`docs/architecture.md`](./docs/architecture.md).
 
 ## 🔒 Vie privée
 

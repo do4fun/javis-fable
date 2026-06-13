@@ -23,7 +23,10 @@ def respond(text: str) -> str:
     t = text.lower().strip()
 
     if re.search(r"\b(bonjour|salut|coucou|hello|bonsoir)\b", t):
-        return "[emo:joie][geste:salut] Salut ! Je tourne en mode dégradé là, mais je suis là. On fait quoi ?"
+        return (
+            "[emo:joie][geste:salut] Salut ! Je tourne en mode dégradé là, "
+            "mais je suis là. On fait quoi ?"
+        )
 
     if re.search(r"\b(quelle heure|l'heure|il est quelle)\b", t):
         return f"[emo:reflexion] {_now_phrase()}"

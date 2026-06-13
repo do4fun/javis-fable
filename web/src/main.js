@@ -16,8 +16,20 @@ import { EmotionEngine } from './emotions.js';
 import { MicCapture } from './mic.js';
 import { HUD } from './ui/hud.js';
 import { Environment } from './environment.js';
+import { resolveProfile } from './quality.js';
+import { Settings } from './ui/settings.js';
 import { config } from './config.js';
 import './ui/ui.css';
+
+// --- Profil de qualité auto (F5.3) ---------------------------------------
+// Appliqué AVANT la création de la scène pour fixer pixelRatio/ombres/poussière.
+const profile = resolveProfile(new Settings().get('quality'));
+config.render.maxPixelRatio = Math.min(config.render.maxPixelRatio, profile.pixelRatio);
+config.render.fpsCap = profile.lifeHz;
+config.env.shadows = profile.shadows;
+config.env.dust.count = profile.dust;
+config.env.dust.enabled = profile.dust > 0;
+console.info('[quality] profil =', profile.name);
 
 const canvas = document.getElementById('scene');
 const avatarEl = document.getElementById('avatar');

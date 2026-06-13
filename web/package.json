@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext .js",
+    "test": "vitest run",
     "format": "prettier --write \"src/**/*.{js,css,html}\""
   },
   "dependencies": {
@@ -18,7 +19,9 @@
   "devDependencies": {
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
+    "jsdom": "^25.0.1",
     "prettier": "^3.3.0",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "vitest": "^2.1.8"
   }
 }

@@ -13,5 +13,5 @@
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-console": "off"
   },
-  "ignorePatterns": ["dist/", "vendor/", "public/"]
+  "ignorePatterns": ["dist/", "vendor/", "public/", "test/e2e/"]
 }

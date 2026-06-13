@@ -1,0 +1,51 @@
+# docker-compose.yml — Déploiement local optionnel de Jarvis (F5.3).
+#
+# Lance le serveur Jarvis + Ollama, avec des volumes pour les poids des modèles
+# (téléchargés une seule fois). 100 % local. Le frontend doit être buildé avant
+# (`cd web && npm run build`) : le serveur sert web/dist.
+#
+# GPU : par défaut, tout tourne sur CPU. Pour accélérer Ollama/Whisper avec un
+# GPU NVIDIA, décommente la section `deploy.resources.reservations.devices`
+# (nécessite le NVIDIA Container Toolkit). Sans GPU, les latences sont plus
+# élevées mais le système reste fonctionnel.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: jarvis-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    restart: unless-stopped
+    # GPU NVIDIA (optionnel) :
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  jarvis:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: jarvis-server
+    ports:
+      - "8000:8000"
+    environment:
+      # Le serveur contacte Ollama via le réseau interne du compose.
+      JARVIS_OLLAMA_HOST: "http://ollama:11434"
+    volumes:
+      # Poids des modèles TTS/STT téléchargés une seule fois.
+      - jarvis-cache:/root/.cache
+      # Mémoire SQLite persistée.
+      - ./server/data:/app/server/data
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama-models:
+  jarvis-cache:
