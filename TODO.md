@@ -197,10 +197,18 @@ y compris pendant que l'avatar parle.
 
 ## PHASE 2 — Voix & synchronisation labiale
 
-### ☐ F2.1 — TTS local Kokoro (français, timestamps)
+### ☑ F2.1 — TTS local Kokoro (français, timestamps)
 
 **But :** voix naturelle générée sur la machine, avec timing par mot.
 **Dépend de :** F0.2.
+**Statut :** livré. `server/modules/tts.py` : moteurs enfichables (Kokoro principal,
+Piper repli, Dummy toujours dispo), `synthesize(text) → {audio 24kHz, words}`,
+reconstruction des timestamps au prorata des mots, découpe en phrases, streaming
+phrase par phrase avec annulation (barge-in via `interrupt`). Câblé au WebSocket :
+`user_text` → `state:speaking` → `tts_audio` (PCM int16 base64 + words) → `idle`.
+Téléchargement des poids documenté dans `docs/install.md`.
+**Test manuel :** `python tests/tts_demo.py "Bonjour"` → WAV + timings ; `make test`
+→ alignement vérifié (somme durées ≈ durée audio ±5 %), streaming et annulation.
 
 ```
 PROMPT F2.1
@@ -454,7 +462,7 @@ fonctionnelle ; `make check` passe au vert.
 |F1.2|Environnement 3D             |☐     |dev/f1.2-environment |
 |F1.3|Comportements autonomes      |☐     |dev/f1.3-life        |
 |F1.4|Système d’émotions           |☐     |dev/f1.4-emotions    |
-|F2.1|TTS local Kokoro             |☐     |dev/f2.1-tts         |
+|F2.1|TTS local Kokoro             |☑     |dev/f2.1-tts         |
 |F2.2|Lip-sync précis              |☐     |dev/f2.2-lipsync     |
 |F3.1|Micro + VAD                  |☐     |dev/f3.1-mic-vad     |
 |F3.2|STT Whisper local            |☐     |dev/f3.2-stt         |

@@ -31,17 +31,30 @@ def test_ws_state_on_connect():
             assert first["payload"]["state"] == "idle"
 
 
-def test_user_text_ack():
+def test_user_text_triggers_speech():
+    # user_text → state:speaking → tts_audio(s) → state:idle (démo « il parle »).
     with TestClient(app) as client:
         with client.websocket_connect("/ws") as ws:
             ws.receive_json()  # state initial
-            env = Envelope.make(ClientMsg.USER_TEXT, {"text": "Bonjour"})
+            env = Envelope.make(ClientMsg.USER_TEXT, {"text": "Bonjour Jarvis."})
             ws.send_text(env.to_json())
-            reply = ws.receive_json()
-            assert reply["type"] == ServerMsg.STATE
-            assert reply["payload"].get("ack") is True
-            # L'id de corrélation doit être préservé.
-            assert reply["id"] == env.id
+
+            speaking = ws.receive_json()
+            assert speaking["type"] == ServerMsg.STATE
+            assert speaking["payload"]["state"] == "speaking"
+            assert speaking["id"] == env.id  # id de corrélation préservé
+
+            audio = ws.receive_json()
+            assert audio["type"] == ServerMsg.TTS_AUDIO
+            assert audio["payload"]["sample_rate"] > 0
+            assert len(audio["payload"]["audio"]) > 0  # base64 non vide
+            assert len(audio["payload"]["words"]) > 0
+
+            # On consomme jusqu'à l'état idle final.
+            last = audio
+            while last["type"] != ServerMsg.STATE:
+                last = ws.receive_json()
+            assert last["payload"]["state"] == "idle"
 
 
 def test_unknown_type_errors():

@@ -11,6 +11,13 @@ import sys
 
 
 def setup_logging(level: int = logging.INFO) -> None:
+    # Sur Windows, la console est souvent en cp1252 : on force l'UTF-8 pour
+    # éviter les « Logging error » sur les caractères accentués / flèches.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(
         logging.Formatter(

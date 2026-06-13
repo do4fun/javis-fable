@@ -12,10 +12,12 @@ dans les fonctionnalités suivantes (F2.1, F3.x, F4.x, F5.1).
 
 from __future__ import annotations
 
+import base64
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import yaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -29,6 +31,17 @@ from core.protocol import (
     Envelope,
     ServerMsg,
 )
+from modules.tts import TTSChunk, TTSService, make_engine
+
+CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
+
+
+def load_config() -> dict:
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return {}
 
 setup_logging()
 log = logging.getLogger("jarvis.app")
@@ -69,9 +82,35 @@ async def lifespan(app: FastAPI):
     # Bus partagé pour toute l'application.
     app.state.bus = EventBus()
     app.state.manager = ConnectionManager()
-    log.info("Jarvis démarré. Frontend attendu dans %s", WEB_DIST)
+    app.state.config = load_config()
+    # Service TTS (F2.1) : moteur enfichable avec repli automatique.
+    app.state.tts = TTSService(make_engine(app.state.config.get("tts")))
+    log.info(
+        "Jarvis démarré (TTS=%s). Frontend attendu dans %s",
+        app.state.tts.engine.name,
+        WEB_DIST,
+    )
     yield
     log.info("Arrêt de Jarvis.")
+
+
+def tts_audio_envelope(chunk: TTSChunk, corr_id: str | None = None) -> Envelope:
+    """Construit une trame ``tts_audio`` (PCM int16 base64 + timings au mot)."""
+    res = chunk.result
+    return Envelope.make(
+        ServerMsg.TTS_AUDIO,
+        {
+            "index": chunk.index,
+            "text": chunk.text,
+            "sample_rate": res.sample_rate,
+            # PCM 16 bits little-endian, encodé base64 pour le transport JSON.
+            "audio": base64.b64encode(res.to_int16_bytes()).decode("ascii"),
+            "words": [
+                {"word": w.word, "start": w.start, "end": w.end} for w in res.words
+            ],
+        },
+        id=corr_id,
+    )
 
 
 app = FastAPI(title="Jarvis", version="0.1.0", lifespan=lifespan)
@@ -146,16 +185,16 @@ async def _handle_message(ws: WebSocket, raw: str) -> None:
     bus: EventBus = ws.app.state.bus
 
     if env.type == ClientMsg.USER_TEXT:
-        # Stub : on accuse réception. F4.1 branchera ici le LLM via le bus.
+        # F2.1 (démo « il parle ») : on synthétise directement le texte reçu.
+        # En F4.1, le LLM s'intercalera (texte utilisateur → réponse → TTS).
         text = env.payload.get("text", "")
         log.info("user_text reçu: %r", text)
         await bus.publish("user_text", {"text": text, "ws": ws})
-        await manager.send(
-            ws,
-            Envelope.make(ServerMsg.STATE, {"state": "thinking", "ack": True}, id=env.id),
-        )
+        await _speak(ws, text, corr_id=env.id)
 
     elif env.type == ClientMsg.INTERRUPT:
+        # Barge-in : on coupe la synthèse en cours.
+        ws.app.state.tts.cancel()
         await bus.publish("interrupt", {"ws": ws})
         await manager.send(
             ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}, id=env.id)
@@ -171,6 +210,29 @@ async def _handle_message(ws: WebSocket, raw: str) -> None:
         # Stub : F3.1/F3.2 brancheront le VAD/STT. On ne renvoie rien ici pour
         # ne pas inonder le client (les chunks arrivent toutes les ~30 ms).
         await bus.publish("audio_chunk", {"payload": env.payload, "ws": ws})
+
+
+async def _speak(ws: WebSocket, text: str, corr_id: str | None = None) -> None:
+    """Synthétise ``text`` phrase par phrase et streame l'audio au client.
+
+    États émis : ``speaking`` au début, ``idle`` à la fin (ou si interrompu).
+    """
+    manager: ConnectionManager = ws.app.state.manager
+    tts: TTSService = ws.app.state.tts
+
+    if not text.strip():
+        await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}, id=corr_id))
+        return
+
+    await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "speaking"}, id=corr_id))
+    try:
+        async for chunk in tts.stream(text):
+            await manager.send(ws, tts_audio_envelope(chunk, corr_id))
+    except Exception:
+        log.exception("échec de synthèse")
+        await manager.send(ws, Envelope.make(ServerMsg.ERROR, {"reason": "tts_failed"}, id=corr_id))
+    finally:
+        await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}, id=corr_id))
 
 
 # Service statique du frontend (monté en dernier pour ne pas masquer /ws).

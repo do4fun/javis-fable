@@ -8,6 +8,14 @@ pydantic==2.10.4
 websockets==14.1
 pyyaml==6.0.2
 
+# Audio / TTS (F2.1). Le moteur Kokoro et piper-tts sont optionnels et
+# documentés dans docs/install.md (poids téléchargés une seule fois). numpy
+# et soundfile suffisent au moteur de repli et aux tests.
+numpy==2.2.1
+soundfile==0.13.0
+# kokoro>=0.9.4        # (optionnel) voix FR principale — voir docs/install.md
+# piper-tts>=1.2.0     # (optionnel) repli voix fr_FR
+
 # Tests
 pytest==8.3.4
 pytest-asyncio==0.25.0
