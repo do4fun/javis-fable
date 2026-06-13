@@ -39,5 +39,5 @@ stt: # F3.2
 llm:  # F4.1
   host: "http://localhost:11434"   # URL d'Ollama (défaut)
   model: "llama3.1:8b"            # doit correspondre au modèle téléchargé
-  timeout: 30                     # secondes avant abandon de la génération
+  timeout: 60                     # secondes avant abandon de la génération
   tutoiement: true                # Jarvis tutoie l'utilisateur

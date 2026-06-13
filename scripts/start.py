@@ -24,6 +24,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 WEB = ROOT / "web"
 SERVER = ROOT / "server"
+LOGS = ROOT / "logs"
+LOG_FRONTEND = LOGS / "frontend.log"
 
 GREEN, YELLOW, RED, RESET = "\033[32m", "\033[33m", "\033[31m", "\033[0m"
 
@@ -73,10 +75,18 @@ def ensure_build() -> None:
         ok("Frontend déjà buildé.")
         return
     warn("Frontend non buildé — build en cours (npm)…")
-    if not (WEB / "node_modules").exists():
-        subprocess.run(["npm", "install"], cwd=WEB, shell=(sys.platform == "win32"), check=True)
-    subprocess.run(["npm", "run", "build"], cwd=WEB, shell=(sys.platform == "win32"), check=True)
-    ok("Frontend buildé.")
+    LOGS.mkdir(parents=True, exist_ok=True)
+    with LOG_FRONTEND.open("w", encoding="utf-8") as flog:
+        if not (WEB / "node_modules").exists():
+            subprocess.run(
+                ["npm", "install"], cwd=WEB, shell=(sys.platform == "win32"),
+                check=True, stdout=flog, stderr=flog,
+            )
+        subprocess.run(
+            ["npm", "run", "build"], cwd=WEB, shell=(sys.platform == "win32"),
+            check=True, stdout=flog, stderr=flog,
+        )
+    ok(f"Frontend buildé. (logs → {LOG_FRONTEND})")
 
 
 def check_ollama() -> None:

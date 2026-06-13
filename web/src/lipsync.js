@@ -36,8 +36,8 @@ export class LipSync {
   }
 
   // À appeler sur un geste utilisateur (autoplay policy des navigateurs).
-  resume() {
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+  async resume() {
+    if (this.ctx.state === 'suspended') await this.ctx.resume();
   }
 
   /**
@@ -45,11 +45,14 @@ export class LipSync {
    * @param {object} p - {audio:base64, sample_rate, words:[{word,start,end}]}
    */
   async play(p) {
-    this.resume();
+    await this.resume();
     const f32 = decodePcmBase64(p.audio);
     const sr = p.sample_rate || 24000;
 
-    if (Array.isArray(p.words) && p.words.length > 0) {
+    // Voie principale uniquement si TalkingHead est chargé ET que les timings
+    // sont présents. Sans avatar (module ou GLB absent), on passe directement
+    // en fallback Web Audio pour que l'audio soit toujours joué.
+    if (Array.isArray(p.words) && p.words.length > 0 && this.avatar.ready) {
       await this._playPrimary(f32, sr, p.words);
     } else {
       await this._playFallback(f32, sr);

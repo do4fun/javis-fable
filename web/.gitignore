@@ -8,4 +8,6 @@ dist/
 public/avatars/*.glb
 public/anims/*.fbx
 public/env/*.hdr
-public/models/*.onnx
+public/models/*.onnx*
+public/vendor/ort/*.mjs
+public/vendor/ort/*.wasm

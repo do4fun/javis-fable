@@ -13,9 +13,17 @@ au routage des messages et au cycle de vie.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Désactive les vérifications de mise à jour HuggingFace Hub à l'exécution.
+# Les modèles (Kokoro, Whisper) sont assumés en cache local après la première
+# installation. Pour forcer un re-téléchargement, commentez ces deux lignes.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
 
 import yaml
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -105,6 +113,14 @@ async def lifespan(app: FastAPI):
             p["ws"], p["audio"], p.get("sample_rate", 16000)
         ),
     )
+
+    # Préchauffage TTS : charge la voix en mémoire au démarrage pour que
+    # le premier tour de parole ne paie pas le coût de chargement du .pt.
+    try:
+        await asyncio.to_thread(tts.engine.synthesize, "Bonjour.")
+        log.info("TTS préchauffé (%s).", tts.engine.name)
+    except Exception as exc:
+        log.warning("Warmup TTS ignoré : %s", exc)
 
     ok, msg = await brain.available()
     log.info("Cerveau Ollama : %s", "prêt" if ok else msg)
