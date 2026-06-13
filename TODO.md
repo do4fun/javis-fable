@@ -45,10 +45,16 @@ fps sur desktop et mobile, `npm run build` produit un bundle 100 %
 autonome servable par un simple serveur statique sans Internet.
 ```
 
-### ☐ F0.2 — Serveur local d’orchestration (FastAPI + WebSocket)
+### ☑ F0.2 — Serveur local d’orchestration (FastAPI + WebSocket)
 
 **But :** colonne vertébrale qui reliera STT, LLM et TTS au navigateur.
 **Dépend de :** rien.
+**Statut :** livré. `/server` (FastAPI + uvicorn) : WebSocket `/ws` avec enveloppe
+typée `{type,id,payload,ts}` (`core/protocol.py`), bus asyncio (`core/bus.py`),
+service statique de `web/dist`, CORS limité à localhost, logs structurés,
+déconnexions propres. `make run` / `run.ps1` pour lancer, `make test` pour pytest.
+**Test manuel :** `cd server && make run` puis `python tests/ws_echo.py "Salut"`
+→ état `idle` initial puis accusé `thinking`. `make test` → 5 tests verts, zéro réseau.
 
 ```
 PROMPT F0.2
@@ -433,7 +439,7 @@ fonctionnelle ; `make check` passe au vert.
 |ID  |Fonctionnalité               |Statut|Branche suggérée     |
 |----|-----------------------------|------|---------------------|
 |F0.1|Scaffolding frontend         |☑     |dev/f0.1-scaffold-web|
-|F0.2|Serveur FastAPI + WebSocket  |☐     |dev/f0.2-server-ws   |
+|F0.2|Serveur FastAPI + WebSocket  |☑     |dev/f0.2-server-ws   |
 |F1.1|TalkingHead + Ready Player Me|☐     |dev/f1.1-avatar      |
 |F1.2|Environnement 3D             |☐     |dev/f1.2-environment |
 |F1.3|Comportements autonomes      |☐     |dev/f1.3-life        |

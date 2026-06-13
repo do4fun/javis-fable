@@ -1,0 +1,14 @@
+# Dépendances serveur Jarvis — colonne vertébrale d'orchestration (F0.2).
+# Tout fonctionne en localhost ; les modules lourds (STT/TTS/LLM) seront
+# ajoutés dans leurs fonctionnalités respectives (F2.1, F3.2, F4.1).
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+websockets==14.1
+pyyaml==6.0.2
+
+# Tests
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1

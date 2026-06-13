@@ -1,0 +1,29 @@
+# Configuration serveur Jarvis.
+# Les sections marquées (Fx.y) seront exploitées par la fonctionnalité
+# correspondante. À ce stade (F0.2), seules server/* et cors/* sont utilisées.
+
+server:
+  host: "127.0.0.1"
+  port: 8000
+
+# Contrainte globale : aucune sortie réseau à l'exécution.
+allow_network: false
+
+cors:
+  origins:
+    - "http://localhost:8000"
+    - "http://localhost:5173"
+
+# --- Réservé pour les fonctionnalités suivantes ---
+tts: # F2.1
+  engine: "kokoro"
+  voice: "ff_siwis"
+  sample_rate: 24000
+
+stt: # F3.2
+  model: "small"
+  language: "fr"
+
+llm: # F4.1
+  host: "http://localhost:11434"
+  model: "llama3.1:8b"
