@@ -326,10 +326,20 @@ localhost ; le VAD déclenche en < 200 ms ; permission micro refusée =
 message clair + repli clavier.
 ```
 
-### ☐ F3.2 — Transcription locale Whisper
+### ☑ F3.2 — Transcription locale Whisper
 
 **But :** comprendre la parole en français, sur la machine.
 **Dépend de :** F3.1, F0.2.
+**Statut :** livré. `server/modules/stt.py` : `WhisperEngine` (faster-whisper,
+modèle `small` par défaut, langue `fr` forcée, int8 CPU) + `DummySTTEngine` de
+repli. Normalisation (hésitations « euh », ponctuation, capitale), conversion
+PCM int16→float32. `STTService.transcribe_segment` en thread. Abonné au bus
+`speech_segment` (F3.1) → émet `transcript {text, final}` puis publie
+`transcript_final` (pour F4.1) ; à défaut de cerveau, démo voix↔voix (synthèse du
+texte transcrit). Bench RTF `tests/bench_stt.py` (suggère un modèle plus petit si
+RTF > 0,8).
+**Test manuel :** `python tests/bench_stt.py mon.wav` → RTF + texte ; `make test`
+→ normalisation et conversion validées (moteur Dummy, sans modèle).
 
 ```
 PROMPT F3.2
@@ -504,7 +514,7 @@ fonctionnelle ; `make check` passe au vert.
 |F2.1|TTS local Kokoro             |☑     |dev/f2.1-tts         |
 |F2.2|Lip-sync précis              |☑     |dev/f2.2-lipsync     |
 |F3.1|Micro + VAD                  |☑     |dev/f3.1-mic-vad     |
-|F3.2|STT Whisper local            |☐     |dev/f3.2-stt         |
+|F3.2|STT Whisper local            |☑     |dev/f3.2-stt         |
 |F4.1|Cerveau Ollama               |☐     |dev/f4.1-brain       |
 |F4.2|Mémoire & outils             |☐     |dev/f4.2-memory      |
 |F5.1|Pipeline temps réel          |☐     |dev/f5.1-pipeline    |

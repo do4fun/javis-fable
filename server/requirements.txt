@@ -15,6 +15,7 @@ numpy==2.2.1
 soundfile==0.13.0
 # kokoro>=0.9.4        # (optionnel) voix FR principale — voir docs/install.md
 # piper-tts>=1.2.0     # (optionnel) repli voix fr_FR
+# faster-whisper>=1.0  # (optionnel) STT FR (F3.2) — voir docs/install.md
 
 # Tests
 pytest==8.3.4

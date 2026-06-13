@@ -31,6 +31,7 @@ from core.protocol import (
     Envelope,
     ServerMsg,
 )
+from modules.stt import STTService, make_stt_engine
 from modules.tts import TTSChunk, TTSService, make_engine
 
 CONFIG_PATH = Path(__file__).resolve().parent / "config.yaml"
@@ -83,15 +84,57 @@ async def lifespan(app: FastAPI):
     app.state.bus = EventBus()
     app.state.manager = ConnectionManager()
     app.state.config = load_config()
-    # Service TTS (F2.1) : moteur enfichable avec repli automatique.
+    # Service TTS (F2.1) et STT (F3.2) : moteurs enfichables, repli automatique.
     app.state.tts = TTSService(make_engine(app.state.config.get("tts")))
+    app.state.stt = STTService(make_stt_engine(app.state.config.get("stt")))
+
+    # Abonnement bus : un segment de parole (F3.1) → transcription (F3.2).
+    app.state.bus.subscribe("speech_segment", _on_speech_segment)
+
     log.info(
-        "Jarvis démarré (TTS=%s). Frontend attendu dans %s",
+        "Jarvis démarré (TTS=%s, STT=%s). Frontend attendu dans %s",
         app.state.tts.engine.name,
+        app.state.stt.engine.name,
         WEB_DIST,
     )
     yield
     log.info("Arrêt de Jarvis.")
+
+
+async def _on_speech_segment(payload: dict) -> None:
+    """Transcrit un segment de parole et renvoie le transcript au client.
+
+    Le transcript final est aussi publié sur le bus (``transcript_final``) à
+    destination du cerveau LLM (F4.1). En attendant F4.1, on fait parler
+    l'avatar avec le texte transcrit (boucle voix↔voix de démonstration).
+    """
+    ws: WebSocket = payload["ws"]
+    audio: bytes = payload["audio"]
+    sr: int = payload.get("sample_rate", 16000)
+    manager: ConnectionManager = ws.app.state.manager
+    stt: STTService = ws.app.state.stt
+    bus: EventBus = ws.app.state.bus
+
+    await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "thinking"}))
+    text = await stt.transcribe_segment(audio, sr)
+    await manager.send(
+        ws, Envelope.make(ServerMsg.TRANSCRIPT, {"text": text, "final": True})
+    )
+
+    if not text:
+        await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}))
+        return
+
+    # Pousse vers le LLM (F4.1) ; un abonné y répondra. Pour l'instant
+    # (démo « il converse »), on synthétise directement le texte transcrit.
+    await bus.publish("transcript_final", {"text": text, "ws": ws})
+    if not bus_has_brain(bus):
+        await _speak(ws, text)
+
+
+def bus_has_brain(bus: EventBus) -> bool:
+    """Vrai si un cerveau LLM est abonné au transcript (branché en F4.1)."""
+    return bool(bus._subs.get("transcript_final"))
 
 
 def tts_audio_envelope(chunk: TTSChunk, corr_id: str | None = None) -> Envelope:
