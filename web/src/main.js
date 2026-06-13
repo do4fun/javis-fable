@@ -12,6 +12,7 @@ import { AvatarManager } from './avatar.js';
 import { JarvisSocket } from './ws.js';
 import { LipSync } from './lipsync.js';
 import { LifeEngine } from './life.js';
+import { EmotionEngine } from './emotions.js';
 import { config } from './config.js';
 
 const canvas = document.getElementById('scene');
@@ -39,8 +40,9 @@ function frame(now) {
   last = now;
   if (dt > 0.1) dt = 0.1;
 
-  // La vie autonome (suivi du regard) tourne quel que soit le moteur de rendu.
+  // Vie autonome (regard) et émotions (couche additive) tournent toujours.
   life.update(dt);
+  emotions.update(dt);
 
   // TalkingHead gère son propre rendu ; on ne rend la scène de repli que si
   // l'avatar n'est pas actif.
@@ -79,6 +81,7 @@ function showBootError(message) {
 const avatar = new AvatarManager(avatarEl, updateBoot);
 const lipsync = new LipSync(avatar);
 const life = new LifeEngine(avatar);
+const emotions = new EmotionEngine(avatar);
 // Permet aux gestes ambiants de se mettre en retrait pendant la parole.
 avatar.lipsync = lipsync;
 
@@ -93,6 +96,16 @@ socket.on('tts_audio', (payload) => {
 socket.on('state', (payload) => {
   // Relaie l'état à la vie autonome (ex. clignements accrus en « réflexion »).
   life.setState(payload.state);
+  // Inhibe jawOpen des émotions pendant la parole (priorité visèmes).
+  emotions.setSpeaking(payload.state === 'speaking');
+});
+
+// Bus émotion (F1.4) : {name, intensity} déclenche l'émotion (préparé pour F4.1).
+socket.on('emotion', (payload) => {
+  emotions.setEmotion(payload.name, {
+    intensity: payload.intensity ?? 1,
+    holdMs: payload.holdMs,
+  });
 });
 
 // Barge-in : couper la parole immédiatement.
@@ -118,8 +131,10 @@ window.jarvis = {
   socket,
   lipsync,
   life,
+  emotions,
   interrupt,
   say: (text) => socket.send('user_text', { text }),
+  emote: (name, intensity = 1) => emotions.setEmotion(name, { intensity }),
 };
 
 async function boot_() {

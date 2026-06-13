@@ -175,10 +175,20 @@ pose figée perceptible ; le regard suit le doigt sur mobile ; tout est
 paramétrable dans config.js.
 ```
 
-### ☐ F1.4 — Système d’émotions
+### ☑ F1.4 — Système d’émotions
 
 **But :** six états émotionnels expressifs et des transitions naturelles.
 **Dépend de :** F1.3.
+**Statut :** livré. `web/src/emotions.js` (`EmotionEngine`) : machine à 6 états
+(neutre, joie, tristesse, surprise, colere, reflexion), presets blendshapes ARKit
++ mood TalkingHead + geste d'entrée. `setEmotion(name,{intensity,holdMs,transitionMs})`,
+transitions easeInOut 400–800 ms, retour auto au neutre après holdMs (défaut 6 s).
+Couche additive : n'écrit que les morphs d'expression, jamais les visèmes
+(priorité visèmes > émotion > idle), jawOpen inhibé pendant la parole. Écoute le
+bus WebSocket `emotion` (préparé pour F4.1). Page `web/test/emotions.html`
+(6 boutons + slider).
+**Test manuel :** ouvrir `/test/emotions.html`, cliquer chaque émotion + régler
+l'intensité ; chaque état identifiable, transitions sans cassure pendant la parole.
 
 ```
 PROMPT F1.4
@@ -479,7 +489,7 @@ fonctionnelle ; `make check` passe au vert.
 |F1.1|TalkingHead + Ready Player Me|☑     |dev/f1.1-avatar      |
 |F1.2|Environnement 3D             |☐     |dev/f1.2-environment |
 |F1.3|Comportements autonomes      |☑     |dev/f1.3-life        |
-|F1.4|Système d’émotions           |☐     |dev/f1.4-emotions    |
+|F1.4|Système d’émotions           |☑     |dev/f1.4-emotions    |
 |F2.1|TTS local Kokoro             |☑     |dev/f2.1-tts         |
 |F2.2|Lip-sync précis              |☑     |dev/f2.2-lipsync     |
 |F3.1|Micro + VAD                  |☐     |dev/f3.1-mic-vad     |

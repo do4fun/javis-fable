@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'node:path';
 
 // Configuration Vite — projet 100 % local, aucun CDN à l'exécution.
 // Le build doit produire un bundle autonome servable par un simple
@@ -15,6 +16,13 @@ export default defineConfig({
     sourcemap: true,
     // On évite tout split inutile : un bundle simple à servir hors-ligne.
     chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      input: {
+        // Page principale + page de validation des émotions (F1.4).
+        main: resolve(import.meta.dirname, 'index.html'),
+        emotions: resolve(import.meta.dirname, 'test/emotions.html'),
+      },
+    },
   },
   server: {
     host: true, // accessible depuis le mobile sur le réseau local

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jarvis — Test émotions (F1.4)</title>
+    <style>
+      body {
+        margin: 0;
+        background: #0a0e14;
+        color: #e6edf3;
+        font-family: system-ui, sans-serif;
+      }
+      #avatar {
+        position: fixed;
+        inset: 0;
+      }
+      #panel {
+        position: fixed;
+        left: 1rem;
+        bottom: 1rem;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 1rem;
+        border-radius: 12px;
+        backdrop-filter: blur(6px);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.6rem;
+      }
+      button {
+        background: #1c2430;
+        color: #e6edf3;
+        border: 1px solid #2a3240;
+        border-radius: 8px;
+        padding: 0.5rem 0.8rem;
+        cursor: pointer;
+        font-size: 0.95rem;
+      }
+      button:hover {
+        background: #25303f;
+      }
+      label {
+        font-size: 0.85rem;
+        opacity: 0.85;
+      }
+      #note {
+        position: fixed;
+        top: 1rem;
+        left: 1rem;
+        right: 1rem;
+        font-size: 0.85rem;
+        opacity: 0.7;
+        max-width: 40rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="avatar"></div>
+    <p id="note">
+      Page de validation visuelle des émotions. Nécessite l'avatar local
+      (web/public/avatars/jarvis.glb) et le module TalkingHead vendorisé. Sans
+      ces assets, les boutons appellent quand même setEmotion (sans rendu).
+    </p>
+    <div id="panel">
+      <div class="row" id="buttons"></div>
+      <div class="row">
+        <label
+          >Intensité <span id="val">1.0</span>
+          <input id="intensity" type="range" min="0" max="1" step="0.05" value="1" />
+        </label>
+      </div>
+    </div>
+
+    <script type="module">
+      import { AvatarManager } from '../src/avatar.js';
+      import { EmotionEngine, EMOTIONS } from '../src/emotions.js';
+      import { config } from '../src/config.js';
+
+      const avatarEl = document.getElementById('avatar');
+      const avatar = new AvatarManager(avatarEl, () => {});
+      const emotions = new EmotionEngine(avatar);
+
+      // Boucle d'update dédiée pour la couche additive.
+      let last = performance.now();
+      function loop(now) {
+        requestAnimationFrame(loop);
+        const dt = Math.min(0.1, (now - last) / 1000);
+        last = now;
+        emotions.update(dt);
+      }
+      requestAnimationFrame(loop);
+
+      // Boutons par émotion.
+      const slider = document.getElementById('intensity');
+      const val = document.getElementById('val');
+      slider.addEventListener('input', () => (val.textContent = (+slider.value).toFixed(2)));
+
+      const container = document.getElementById('buttons');
+      for (const name of EMOTIONS) {
+        const b = document.createElement('button');
+        b.textContent = name;
+        b.onclick = () => emotions.setEmotion(name, { intensity: +slider.value });
+        container.appendChild(b);
+      }
+
+      avatar.load(config.avatar.glbUrl).then((r) => {
+        if (!r.ok) console.warn('Avatar non chargé :', r.reason);
+      });
+      window.jarvisTest = { avatar, emotions };
+    </script>
+  </body>
+</html>
