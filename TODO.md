@@ -481,10 +481,20 @@ Critères d'acceptation : 5 tours de conversation vocale sans
 rechargement ; couper la parole à l'avatar fonctionne 10 fois de suite.
 ```
 
-### ☐ F5.2 — Interface utilisateur de l’assistant
+### ☑ F5.2 — Interface utilisateur de l’assistant
 
 **But :** habillage sobre : états, sous-titres, réglages.
 **Dépend de :** F5.1.
+**Statut :** livré. `web/src/ui/hud.js` (`HUD`) + `ui/settings.js` + `ui/ui.css` :
+bandeau d'état (prêt/écoute/réfléchit/parle) + niveau micro, sous-titres
+synchronisés `aria-live` (transcript utilisateur en direct + texte avatar via
+`llm_token`), activables. Panneau réglages persistés localStorage (sous-titres,
+mode micro, qualité, thème clair/sombre, vitesse voix, modèle Ollama → message
+`config`). Historique repliable (drawer) + export `.txt`. Saisie clavier (repli
+si micro refusé). Accessibilité : focus visibles, Échap ferme les tiroirs,
+`prefers-reduced-motion`, responsive ≤ 360 px.
+**Test manuel :** utilisable au clavier seul ; thème bascule clair/sombre ;
+sous-titres activables ; export conversation en .txt ; lisible sur 360 px.
 
 ```
 PROMPT F5.2
@@ -549,7 +559,7 @@ fonctionnelle ; `make check` passe au vert.
 |F4.1|Cerveau Ollama               |☑     |dev/f4.1-brain       |
 |F4.2|Mémoire & outils             |☑     |dev/f4.2-memory      |
 |F5.1|Pipeline temps réel          |☑     |dev/f5.1-pipeline    |
-|F5.2|Interface utilisateur        |☐     |dev/f5.2-ui          |
+|F5.2|Interface utilisateur        |☑     |dev/f5.2-ui          |
 |F5.3|Perf & packaging             |☐     |dev/f5.3-packaging   |
 
 **Ordre recommandé :** F0.1 → F0.2 → F1.1 → F2.1 → F2.2 (démo « il parle ») → F1.3 → F1.4 → F3.1 → F3.2 → F4.1 (démo « il converse ») → F4.2 → F5.1 → F5.2 → F5.3.

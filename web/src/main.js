@@ -14,7 +14,9 @@ import { LipSync } from './lipsync.js';
 import { LifeEngine } from './life.js';
 import { EmotionEngine } from './emotions.js';
 import { MicCapture } from './mic.js';
+import { HUD } from './ui/hud.js';
 import { config } from './config.js';
+import './ui/ui.css';
 
 const canvas = document.getElementById('scene');
 const avatarEl = document.getElementById('avatar');
@@ -149,8 +151,7 @@ const mic = new MicCapture({
   isAvatarSpeaking: () => lipsync.speaking,
   onStatus: (s) => {
     if (s.error) console.warn(s.error);
-    micBtn?.classList.toggle('listening', !!s.listening);
-    micBtn?.classList.toggle('speech', !!s.speech);
+    if (typeof s.level === 'number') hud.setMicLevel(s.level);
   },
   onListen: () => {
     // À l'écoute : l'avatar prend l'air « réflexion » et incline la tête.
@@ -159,26 +160,17 @@ const mic = new MicCapture({
   onIdle: () => {},
 });
 
-// Bouton micro flottant (HUD complet en F5.2).
-const micBtn = document.createElement('button');
-micBtn.id = 'mic-btn';
-micBtn.title = 'Parler à Jarvis';
-micBtn.textContent = '🎤';
-micBtn.style.pointerEvents = 'auto';
-document.getElementById('hud')?.appendChild(micBtn);
-
-let micReady = false;
-micBtn.addEventListener('click', async () => {
-  lipsync.resume();
-  if (!micReady) {
-    micReady = await mic.init();
-    if (!micReady) {
-      micBtn.classList.add('denied');
-      return;
-    }
-  }
-  if (mic.active) mic.stop();
-  else mic.start();
+// --- Interface utilisateur (F5.2) -----------------------------------------
+const hud = new HUD({
+  root: document.getElementById('hud'),
+  socket,
+  mic,
+  lipsync,
+  emotions,
+  onConfig: ({ quality }) => {
+    // La qualité graphique sera appliquée finement en F5.3.
+    if (quality) console.info('[ui] qualité graphique:', quality);
+  },
 });
 
 // Exposé pour les modules suivants (vie, émotions, UI) et le test manuel.
@@ -191,6 +183,7 @@ window.jarvis = {
   life,
   emotions,
   mic,
+  hud,
   interrupt,
   say: (text) => socket.send('user_text', { text }),
   emote: (name, intensity = 1) => emotions.setEmotion(name, { intensity }),

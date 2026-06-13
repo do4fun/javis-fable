@@ -1,0 +1,246 @@
+/* ui.css — Habillage du HUD de Jarvis (F5.2). Sobre, accessible, mobile-first. */
+
+body[data-theme='light'] {
+  --bg: #f4f6fa;
+  --fg: #1a1f29;
+  --panel: rgba(255, 255, 255, 0.82);
+  --border: #d3dae6;
+}
+body[data-theme='dark'],
+body:not([data-theme]) {
+  --panel: rgba(16, 21, 30, 0.78);
+  --border: #2a3240;
+}
+
+#hud-root {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none; /* seuls les éléments interactifs réactivent */
+}
+
+#hud-root button,
+#hud-root input,
+#hud-root select,
+#hud-root a {
+  pointer-events: auto;
+}
+
+/* Focus visible partout (accessibilité clavier). */
+#hud-root :focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* --- Bandeau d'état --- */
+#status-banner {
+  position: fixed;
+  top: calc(0.7rem + env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  backdrop-filter: blur(8px);
+}
+#status-banner .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #6b7686;
+  transition: background 0.25s ease;
+}
+#status-banner[data-state='listening'] .dot {
+  background: #4ea1ff;
+}
+#status-banner[data-state='thinking'] .dot {
+  background: #ffb454;
+}
+#status-banner[data-state='speaking'] .dot {
+  background: #2ea44f;
+}
+#status-banner.error .dot {
+  background: #ff6b6b;
+}
+.mic-meter {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(128, 128, 128, 0.3);
+  overflow: hidden;
+}
+.mic-meter i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: #4ea1ff;
+  transition: width 0.1s linear;
+}
+
+/* --- Sous-titres --- */
+#subtitles {
+  position: fixed;
+  left: 50%;
+  bottom: calc(6.2rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(46rem, 92vw);
+  text-align: center;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+#subtitles p {
+  margin: 0.2rem 0;
+}
+.sub-user {
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+.sub-avatar {
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+/* --- Contrôles --- */
+#hud-controls {
+  position: fixed;
+  bottom: calc(1.1rem + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0.5rem;
+}
+#hud-controls button {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  background: var(--panel);
+  color: var(--fg);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+#hud-controls button:hover {
+  transform: translateY(-2px);
+}
+
+/* --- Saisie clavier --- */
+#text-input {
+  position: fixed;
+  bottom: calc(1.1rem + env(safe-area-inset-bottom));
+  right: 1rem;
+  display: flex;
+  gap: 0.4rem;
+  max-width: 60vw;
+}
+#text-input input {
+  flex: 1;
+  min-width: 8rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--fg);
+}
+#text-input button {
+  padding: 0 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+/* --- Tiroirs (historique / réglages) --- */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(22rem, 90vw);
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+.drawer[aria-hidden='false'] {
+  transform: translateX(0);
+}
+.drawer header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.drawer header h2 {
+  font-size: 1rem;
+  margin: 0;
+  flex: 1;
+}
+.drawer header button {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--fg);
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+}
+.history-list,
+.settings-list {
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+.history-list p {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+.hist-user {
+  opacity: 0.75;
+}
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+  font-size: 0.9rem;
+}
+.setting-row select,
+.setting-row input[type='text'] {
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  #hud-controls button,
+  #status-banner .dot,
+  .mic-meter i {
+    transition: none;
+  }
+}
+
+/* Petits écrans : la saisie passe sous les contrôles. */
+@media (max-width: 480px) {
+  #text-input {
+    right: 50%;
+    transform: translateX(50%);
+    bottom: calc(4.6rem + env(safe-area-inset-bottom));
+    max-width: 92vw;
+    width: 92vw;
+  }
+}
