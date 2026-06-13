@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import { config } from './config.js';
+import { Environment } from './environment.js';
 
 export class Scene {
   constructor(canvas) {
@@ -33,15 +34,9 @@ export class Scene {
     this._target = new THREE.Vector3(target.x, target.y, target.z);
     this.camera.lookAt(this._target);
 
-    // --- Éclairage minimal (remplacé par l'éclairage 3 points en F1.2) ------
-    const ambient = new THREE.AmbientLight(0xffffff, config.lights.ambientIntensity);
-    this.scene.add(ambient);
-
-    const key = new THREE.DirectionalLight(0xfff2e6, config.lights.keyIntensity);
-    key.position.set(2, 4, 3);
-    this.scene.add(key);
-
-    // Repère de sol discret pour situer la scène vide (retiré dès F1.2).
+    // --- Environnement 3D (F1.2) : éclairage 3 points, sol, poussière, IBL --
+    this.environment = new Environment(this.scene, this.renderer);
+    // Repère central pour matérialiser la place de l'avatar (scène de repli).
     this._placeholder = this._buildPlaceholder();
     this.scene.add(this._placeholder);
 
@@ -62,25 +57,16 @@ export class Scene {
     return window.innerWidth / window.innerHeight;
   }
 
-  // Sol + cube témoin : matérialise une « scène éclairée » avant l'avatar.
+  // Témoin central : matérialise la place de l'avatar (le sol vient de
+  // l'environnement). Retiré quand l'avatar TalkingHead est actif.
   _buildPlaceholder() {
-    const group = new THREE.Group();
-
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(3, 48),
-      new THREE.MeshStandardMaterial({ color: 0x141a24, roughness: 0.95 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    group.add(floor);
-
     const marker = new THREE.Mesh(
       new THREE.CapsuleGeometry(0.25, 1.0, 6, 16),
       new THREE.MeshStandardMaterial({ color: 0x2a3240, roughness: 0.6 })
     );
     marker.position.y = 1.0;
-    group.add(marker);
-
-    return group;
+    marker.castShadow = true;
+    return marker;
   }
 
   _onResize() {
@@ -93,13 +79,15 @@ export class Scene {
   }
 
   // Appelée à chaque frame par la boucle de main.js.
-  render(_dt) {
+  render(dt) {
+    this.environment?.update(dt);
     this.renderer.render(this.scene, this.camera);
   }
 
   dispose() {
     window.removeEventListener('resize', this._onResize);
     window.removeEventListener('orientationchange', this._onResize);
+    this.environment?.dispose();
     this.renderer.dispose();
   }
 }

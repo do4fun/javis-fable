@@ -15,6 +15,7 @@ import { LifeEngine } from './life.js';
 import { EmotionEngine } from './emotions.js';
 import { MicCapture } from './mic.js';
 import { HUD } from './ui/hud.js';
+import { Environment } from './environment.js';
 import { config } from './config.js';
 import './ui/ui.css';
 
@@ -24,8 +25,11 @@ const boot = document.getElementById('boot');
 const bootLabel = document.getElementById('boot-label');
 const bootBar = document.getElementById('boot-bar-fill');
 
-// --- Scène de repli (placeholder de F0.1) --------------------------------
+// --- Scène de repli (placeholder de F0.1, décor de F1.2) ------------------
 const scene = new Scene(canvas);
+// Panneau debug de l'environnement (?debug).
+scene.environment?.mountDebug();
+let avatarEnv = null; // environnement appliqué à la scène TalkingHead
 
 let last = performance.now();
 let running = true;
@@ -48,8 +52,11 @@ function frame(now) {
   emotions.update(dt);
 
   // TalkingHead gère son propre rendu ; on ne rend la scène de repli que si
-  // l'avatar n'est pas actif.
-  if (avatarActive) return;
+  // l'avatar n'est pas actif. On anime quand même le décor de l'avatar.
+  if (avatarActive) {
+    avatarEnv?.update(dt);
+    return;
+  }
 
   acc += dt * 1000;
   if (minFrameMs > 0 && acc < minFrameMs) return;
@@ -198,6 +205,16 @@ async function boot_() {
     avatarActive = true;
     document.body.classList.add('avatar-active');
     life.start(); // vie autonome : regard, saccades, gestes ambiants
+    // Décor de F1.2 dans la scène interne de TalkingHead (best-effort).
+    try {
+      const head = avatar.head;
+      if (head?.scene) {
+        avatarEnv = new Environment(head.scene, head.renderer || null);
+        avatarEnv.mountDebug();
+      }
+    } catch (err) {
+      console.warn('[env] décor avatar non appliqué :', err.message);
+    }
     hideBoot();
   } else {
     // Repli : on garde la scène placeholder visible et on explique l'erreur.

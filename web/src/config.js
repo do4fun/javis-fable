@@ -44,6 +44,32 @@ export const config = {
     cameraView: 'upper', // vue interne TalkingHead au chargement
   },
 
+  // Environnement 3D (F1.2). Presets jour/nuit, éclairage 3 points, décor léger.
+  env: {
+    preset: 'jour', // 'jour' | 'nuit'
+    shadows: 'auto', // 'auto' (desktop only) | true | false
+    hdri: '/env/studio_small.hdr', // IBL optionnelle (absente = ignorée)
+    dust: { enabled: true, count: 400 }, // particules de poussière (budget léger)
+    presets: {
+      jour: {
+        background: 0x1b2230,
+        ambient: 0.55,
+        key: { color: 0xfff1e0, intensity: 1.2 },
+        fill: { color: 0xbcd4ff, intensity: 0.5 },
+        rim: { color: 0xffffff, intensity: 0.8 },
+        floor: { inner: 0x2a3344, outer: 0x10151e },
+      },
+      nuit: {
+        background: 0x080a10,
+        ambient: 0.3,
+        key: { color: 0xffd9a0, intensity: 0.8 },
+        fill: { color: 0x6688cc, intensity: 0.35 },
+        rim: { color: 0xaaccff, intensity: 1.0 },
+        floor: { inner: 0x161b26, outer: 0x05070b },
+      },
+    },
+  },
+
   // Vie autonome (F1.3). TalkingHead gère nativement clignement/respiration/
   // sway/idle : on les configure ici, et on complète (suivi du regard, gestes).
   life: {

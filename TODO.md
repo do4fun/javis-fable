@@ -117,10 +117,19 @@ TalkingHead actif, 60 fps desktop / ≥30 fps mobile milieu de gamme,
 aucune requête réseau externe dans l'onglet Network.
 ```
 
-### ☐ F1.2 — Environnement 3D de l’assistant
+### ☑ F1.2 — Environnement 3D de l’assistant
 
 **But :** un décor cohérent, léger, qui situe l’avatar.
 **Dépend de :** F1.1.
+**Statut :** livré. `web/src/environment.js` (`Environment`) : éclairage 3 points
+(key chaude, fill froide, rim) + ambiance, ombres douces desktop uniquement
+(détection UA), sol à dégradé radial généré par canvas (≤ 512 px, zéro asset
+réseau), particules de poussière animées, IBL optionnelle via HDRI locale
+(ignorée si absente). 2 presets `jour`/`nuit` dans `config.js`, panneau debug
+lil-gui (bundlé local) activé par `?debug`. Appliqué à la scène de repli et, en
+best-effort, à la scène interne de TalkingHead.
+**Test manuel :** rendu cohérent ; bascule jour/nuit via `?debug` ; aucun asset
+chargé depuis Internet (onglet Network) ; FPS stable.
 
 ```
 PROMPT F1.2
@@ -549,7 +558,7 @@ fonctionnelle ; `make check` passe au vert.
 |F0.1|Scaffolding frontend         |☑     |dev/f0.1-scaffold-web|
 |F0.2|Serveur FastAPI + WebSocket  |☑     |dev/f0.2-server-ws   |
 |F1.1|TalkingHead + Ready Player Me|☑     |dev/f1.1-avatar      |
-|F1.2|Environnement 3D             |☐     |dev/f1.2-environment |
+|F1.2|Environnement 3D             |☑     |dev/f1.2-environment |
 |F1.3|Comportements autonomes      |☑     |dev/f1.3-life        |
 |F1.4|Système d’émotions           |☑     |dev/f1.4-emotions    |
 |F2.1|TTS local Kokoro             |☑     |dev/f2.1-tts         |
