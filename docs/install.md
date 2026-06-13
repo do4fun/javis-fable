@@ -6,85 +6,365 @@ réseau n'est nécessaire. Cette page regroupe ces téléchargements uniques.
 
 ## Vue d'ensemble
 
-| Modèle            | Fonctionnalité | Taille indicative | Obligatoire ?              |
-|-------------------|----------------|-------------------|----------------------------|
-| Kokoro TTS (FR)   | F2.1 (voix)    | ~350 Mo           | recommandé (repli dispo)   |
-| piper-tts (fr_FR) | F2.1 (repli)   | ~60 Mo            | optionnel                  |
+| Modèle            | Fonctionnalité | Taille indicative | Obligatoire ?                |
+|-------------------|----------------|-------------------|------------------------------|
+| Kokoro TTS (FR)   | F2.1 (voix)    | ~350 Mo           | recommandé (repli dispo)     |
+| piper-tts (fr_FR) | F2.1 (repli)   | ~60 Mo            | optionnel                    |
 | faster-whisper    | F3.2 (écoute)  | ~150–500 Mo       | requis pour la voix entrante |
-| Silero VAD (ONNX) | F3.1 (VAD)     | ~2 Mo             | requis pour mains-libres   |
-| LLM via Ollama    | F4.1 (cerveau) | ~4–5 Go           | requis pour converser      |
+| Silero VAD (ONNX) | F3.1 (VAD)     | ~2 Mo             | requis pour mains-libres     |
+| LLM via Ollama    | F4.1 (cerveau) | ~4–5 Go           | requis pour converser        |
 
 > Sans aucun modèle vocal, le TTS bascule automatiquement sur un moteur de
 > repli (`dummy`, onde sinusoïdale) : utile pour développer, pas pour écouter.
 
-## TTS — Kokoro (voix française)
+## Activation du venv Python (rappel)
+
+Toutes les commandes `pip install` ci-dessous s'exécutent dans le venv du
+serveur. Active-le une seule fois par terminal :
 
 ```bash
+# Windows (PowerShell)
 cd server
-.venv/Scripts/pip install kokoro soundfile   # Windows
-# source .venv/bin/activate && pip install kokoro soundfile   # Unix
+.venv\Scripts\activate
+
+# Unix / Git Bash
+cd server
+source .venv/bin/activate
 ```
 
-Au premier appel, Kokoro télécharge ses poids et la voix française
-(`ff_siwis`). Renseigne le moteur dans `server/config.yaml` :
+> Si le venv n'existe pas encore : `python -m venv .venv` puis `pip install -r requirements.txt`.
+
+---
+
+## TTS — Kokoro (voix française)
+
+**Pourquoi :** Kokoro génère une voix française naturelle (~24 kHz) avec des
+timestamps mot à mot utilisés pour synchroniser les lèvres. C'est le moteur
+TTS principal. Les poids sont téléchargés automatiquement au **premier appel**.
+
+### Installation de Kokoro
+
+```bash
+# Avec le venv activé (voir rappel ci-dessus)
+pip install kokoro soundfile
+```
+
+### Configuration de Kokoro
+
+Ouvre `server/config.yaml` et vérifie :
 
 ```yaml
 tts:
   engine: kokoro
-  voice: ff_siwis
+  voice: ff_siwis     # voix française Kokoro
   sample_rate: 24000
 ```
 
-### Repli piper-tts (optionnel)
+### Vérification de Kokoro
+
+```bash
+# Windows
+.venv\Scripts\python tests/tts_demo.py "Bonjour, je suis Jarvis."
+
+# Unix
+python tests/tts_demo.py "Bonjour, je suis Jarvis."
+# → génère server/out.wav ; écoute-le pour confirmer la voix
+```
+
+Au premier lancement, Kokoro télécharge ses poids (~350 Mo). Les appels
+suivants sont hors-ligne.
+
+---
+
+### Repli — piper-tts (optionnel)
+
+**Pourquoi :** Si Kokoro n'est pas installé ou plante, le serveur peut utiliser
+piper-tts comme deuxième repli avant de basculer sur le moteur `dummy`.
+
+#### Installation de piper-tts
 
 ```bash
 pip install piper-tts
-# Télécharge une voix fr_FR (ex. fr_FR-siwis-medium) depuis les releases piper,
-# place le .onnx en local, puis :
 ```
+
+#### Télécharger une voix française
+
+Récupère le fichier `.onnx` + `.onnx.json` depuis les releases officielles de
+piper :
+
+```bash
+# Exemple : voix fr_FR-siwis-medium
+curl -L -o fr_FR-siwis-medium.onnx \
+  https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx
+
+curl -L -o fr_FR-siwis-medium.onnx.json \
+  https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/fr_FR-siwis-medium.onnx.json
+```
+
+Place les deux fichiers dans `server/models/` (crée le dossier si besoin).
+
+#### Configuration de piper-tts
 
 ```yaml
 tts:
   engine: piper
-  piper_model: /chemin/local/fr_FR-siwis-medium.onnx
+  piper_model: models/fr_FR-siwis-medium.onnx
+  sample_rate: 22050
 ```
+
+---
 
 ## STT — faster-whisper (F3.2)
 
+**Pourquoi :** faster-whisper transcrit la parole capturée par le micro en
+texte, entièrement en local. Il utilise CTranslate2, une implémentation
+optimisée de Whisper (OpenAI). Le modèle est mis en cache localement au premier
+chargement.
+
+### Installation de faster-whisper
+
 ```bash
+# Avec le venv activé
 pip install faster-whisper
 ```
 
-Le modèle (`small` par défaut) est téléchargé au premier chargement et mis en
-cache localement. Détaillé en F3.2.
+### Choix du modèle
+
+Le modèle se configure dans `server/config.yaml` (section `stt`) :
+
+```yaml
+stt:
+  model: small     # tiny | base | small | medium | large-v3
+  language: fr
+```
+
+| Modèle     | Taille   | VRAM (GPU) | Qualité FR  | Latence (CPU) |
+|------------|----------|------------|-------------|---------------|
+| `tiny`     | ~75 Mo   | ~1 Go      | correcte    | très rapide   |
+| `base`     | ~145 Mo  | ~1 Go      | bonne       | rapide        |
+| `small`    | ~465 Mo  | ~2 Go      | très bonne  | moyenne       |
+| `medium`   | ~1,5 Go  | ~5 Go      | excellente  | lente         |
+| `large-v3` | ~3 Go    | ~10 Go     | référence   | très lente    |
+
+**Recommandation :** `small` est le meilleur compromis pour une machine sans GPU
+dédié. Sur GPU, `medium` ou `large-v3` sont nettement meilleurs.
+
+### Vérification de faster-whisper
+
+```bash
+# Windows
+.venv\Scripts\python tests/bench_stt.py
+
+# Unix
+python tests/bench_stt.py
+# → transcrit un fichier audio de test et affiche la latence
+```
+
+Au premier démarrage du serveur, faster-whisper télécharge les poids (~150 Mo
+pour `small`) et les met en cache dans `~/.cache/huggingface/`. Les démarrages
+suivants sont hors-ligne.
+
+---
 
 ## VAD — Silero (F3.1)
 
-Le VAD tourne **dans le navigateur** via onnxruntime-web, 100 % local :
+Le VAD (détecteur d'activité vocale) tourne **dans le navigateur** via
+onnxruntime-web, 100 % local. Il faut deux choses : le modèle Silero et le
+moteur WebAssembly qui l'exécute.
 
-1. Dépose le modèle `silero_vad.onnx` dans `web/public/models/` (récupéré
-   depuis le dépôt Silero VAD ; non versionné).
-2. Vendorise le runtime onnxruntime-web (ESM + wasm) dans `web/public/vendor/ort/`
-   (fichiers `ort.min.mjs` et `*.wasm`) — aucun CDN. Le chemin est configurable
-   dans `web/src/config.js` (`mic.vad.ortPath`).
+### Pourquoi « vendoriser » ONNX Runtime Web ?
 
-> Sans ces fichiers, le VAD bascule automatiquement sur un repli **énergétique**
-> (RMS + plancher de bruit adaptatif), sans dépendance ni téléchargement. Moins
-> fin que Silero mais fonctionnel et hors-ligne.
+ONNX Runtime Web est une bibliothèque JavaScript + WebAssembly publiée par
+Microsoft. Elle permet au navigateur d'exécuter des modèles `.onnx` (dont
+Silero). Normalement elle se chargerait depuis un CDN ; comme Jarvis est
+100 % local, on copie ces fichiers **une seule fois** dans le dépôt pour
+qu'ils soient servis par le serveur local. C'est ce qu'on appelle « vendoriser ».
+
+### Étape 1 — Modèle Silero VAD
+
+Télécharge `silero_vad.onnx` depuis le dépôt officiel et dépose-le dans
+`web/public/models/` :
+
+```bash
+# Unix / Git Bash (depuis la racine du projet)
+curl -L -o web/public/models/silero_vad.onnx \
+  https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx
+```
+
+```powershell
+# Windows PowerShell (depuis la racine du projet)
+Invoke-WebRequest `
+  -Uri "https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx" `
+  -OutFile "web\public\models\silero_vad.onnx"
+```
+
+Ou télécharge-le manuellement depuis <https://github.com/snakers4/silero-vad>
+et place-le dans `web/public/models/`.
+
+### Étape 2 — Runtime ONNX Web (vendorisé)
+
+```bash
+# Unix / Git Bash
+cd web
+npm install onnxruntime-web
+mkdir -p public/vendor/ort
+cp node_modules/onnxruntime-web/dist/esm/ort.min.mjs  public/vendor/ort/
+cp node_modules/onnxruntime-web/dist/esm/*.wasm        public/vendor/ort/
+npm uninstall onnxruntime-web
+```
+
+```powershell
+# Windows PowerShell
+cd web
+npm install onnxruntime-web
+New-Item -ItemType Directory -Force public\vendor\ort
+Copy-Item node_modules\onnxruntime-web\dist\esm\ort.min.mjs public\vendor\ort\
+Copy-Item node_modules\onnxruntime-web\dist\esm\*.wasm      public\vendor\ort\
+npm uninstall onnxruntime-web
+```
+
+Les fichiers `.wasm` copiés sont typiquement :
+
+| Fichier                       | Utilité                         |
+|-------------------------------|---------------------------------|
+| `ort-wasm-simd-threaded.wasm` | chemin optimal (SIMD + threads) |
+| `ort-wasm-simd.wasm`          | SIMD sans threads               |
+| `ort-wasm-threaded.wasm`      | threads sans SIMD               |
+| `ort-wasm.wasm`               | repli universel                 |
+
+ONNX Runtime choisit automatiquement le meilleur `.wasm` selon le navigateur.
+
+### Résultat attendu
+
+```text
+web/public/
+  models/
+    silero_vad.onnx
+  vendor/ort/
+    ort.min.mjs
+    ort-wasm-simd-threaded.wasm
+    ort-wasm-simd.wasm
+    ort-wasm-threaded.wasm
+    ort-wasm.wasm
+```
+
+Le chemin du runtime est configurable dans `web/src/config.js` :
+
+```js
+mic: {
+  vad: {
+    ortPath: '/vendor/ort/ort.min.mjs',
+  }
+}
+```
+
+> **Sans ces fichiers**, le VAD bascule automatiquement sur un repli
+> **énergétique** (RMS + plancher de bruit adaptatif) — aucune erreur, aucun
+> téléchargement, mais la détection de parole est moins précise qu'avec Silero.
+
+---
 
 ## LLM — Ollama (F4.1)
 
+**Pourquoi :** Ollama fait tourner un grand modèle de langage (LLM) en local.
+C'est le « cerveau » de Jarvis : il reçoit l'historique de conversation et
+génère des réponses en streaming, token par token.
+
+### Installation d'Ollama
+
+Télécharge et installe Ollama depuis <https://ollama.com> :
+
 ```bash
-# Installe Ollama depuis https://ollama.com puis :
-ollama pull llama3.1:8b
+# Unix (installe le service + CLI)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Windows : télécharge l'installateur .exe depuis https://ollama.com/download
+# puis lance-le ; Ollama démarre automatiquement en tâche de fond.
+
+# macOS
+brew install ollama
 ```
 
-Configuré dans `server/config.yaml` (section `llm`). Détaillé en F4.1.
+Vérifie que le service tourne :
+
+```bash
+ollama list   # doit afficher la liste des modèles (vide au début)
+```
+
+### Télécharger un modèle
+
+```bash
+ollama pull llama3.1:8b      # recommandé — bon équilibre qualité/vitesse (~4,7 Go)
+# ollama pull mistral:7b     # alternative légère (~4,1 Go)
+# ollama pull llama3.1:70b   # qualité maximale, nécessite ~40 Go de RAM
+```
+
+Le modèle est stocké dans `~/.ollama/models/` et utilisable hors-ligne ensuite.
+
+### Configuration d'Ollama
+
+Ouvre `server/config.yaml` et ajuste la section `llm` :
+
+```yaml
+llm:
+  host: "http://localhost:11434"   # URL d'Ollama (défaut)
+  model: "llama3.1:8b"            # doit correspondre au modèle téléchargé
+  timeout: 30                     # secondes avant abandon de la génération
+  tutoiement: true                # Jarvis tutoie l'utilisateur
+```
+
+Si Ollama tourne sur une autre machine du réseau local, change `host` en
+conséquence ou exporte la variable d'environnement :
+
+```bash
+export JARVIS_OLLAMA_HOST=http://192.168.1.42:11434
+```
+
+### Vérification d'Ollama
+
+```bash
+# Test rapide en ligne de commande
+ollama run llama3.1:8b "Dis bonjour en une phrase."
+```
+
+```bash
+# Test via le serveur Jarvis (avec venv activé)
+# Windows
+.venv\Scripts\python tests/bench_stt.py
+
+# Unix
+python -c "
+import asyncio
+from modules.brain import Brain
+async def t():
+    b = Brain({'host':'http://localhost:11434','model':'llama3.1:8b','timeout':30,'tutoiement':True})
+    async for tok in b.stream('Bonjour !', []):
+        print(tok, end='', flush=True)
+asyncio.run(t())
+"
+```
+
+> **Sans Ollama**, le serveur bascule sur le cerveau **rule-based** intégré
+> (réponses prédéfinies pour les salutations, l'heure, les capacités). Utile
+> pour développer sans avoir besoin du LLM.
+
+---
 
 ## Vérifier le TTS sans navigateur
 
 ```bash
-cd server
-.venv/Scripts/python tests/tts_demo.py "Bonjour, je suis Jarvis."
-# → écrit out.wav (avec le moteur configuré, ou le repli dummy)
+# Windows
+.venv\Scripts\python tests/tts_demo.py "Bonjour, je suis Jarvis."
+
+# Unix
+python tests/tts_demo.py "Bonjour, je suis Jarvis."
+# → génère server/out.wav avec le moteur configuré (ou le repli dummy)
+```
+
+## Suite de tests complète
+
+```bash
+# Depuis la racine du projet
+make check
+# → ESLint + vitest + build (web) ; ruff + pytest (serveur)
 ```
