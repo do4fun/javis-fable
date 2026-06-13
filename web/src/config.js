@@ -98,7 +98,7 @@ export const config = {
     vad: {
       engine: 'silero', // 'silero' (ONNX) ou 'energy' (repli)
       modelUrl: '/models/silero_vad.onnx',
-      ortPath: '/vendor/ort/',
+      ortPath: '/vendor/ort/ort.min.mjs',
     },
   },
 

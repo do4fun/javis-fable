@@ -445,3 +445,83 @@ python tests/tts_demo.py "Bonjour, je suis Jarvis."
 make check
 # → ESLint + vitest + build (web) ; ruff + pytest (serveur)
 ```
+
+---
+
+## Démarrage de Jarvis
+
+Une fois les modèles installés, deux façons de lancer l'application.
+
+### Méthode 1 — démarrage en un clic (recommandée)
+
+Le script `scripts/start.py` vérifie les prérequis, build le frontend si
+nécessaire, contrôle Ollama, puis lance le serveur et ouvre le navigateur.
+
+```powershell
+# Windows PowerShell (depuis la racine du projet)
+.\start.ps1
+```
+
+```bash
+# Unix / Git Bash (depuis la racine du projet)
+make start
+# ou directement :
+python scripts/start.py
+```
+
+Options disponibles :
+
+```bash
+python scripts/start.py --no-browser   # ne pas ouvrir le navigateur automatiquement
+python scripts/start.py --port 9000    # changer le port (défaut : 8000)
+```
+
+Le script affiche l'état de chaque prérequis (✓ ok / ! avertissement) et
+indique clairement ce qui manque. Un prérequis manquant n'empêche pas le
+lancement : Jarvis bascule sur ses replis et reste utilisable.
+
+Une fois lancé, ouvre <http://localhost:8000> dans le navigateur.
+
+---
+
+### Méthode 2 — démarrage manuel (mode développement)
+
+Utile pour travailler sur le code avec le rechargement automatique (HMR côté
+frontend, `--reload` côté serveur).
+
+**Terminal 1 — serveur FastAPI :**
+
+```powershell
+# Windows
+cd server
+.venv\Scripts\activate
+python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
+```
+
+```bash
+# Unix
+cd server
+source .venv/bin/activate
+python -m uvicorn app:app --host 127.0.0.1 --port 8000 --reload
+```
+
+**Terminal 2 — frontend Vite (HMR) :**
+
+```bash
+cd web
+npm install        # seulement au premier lancement
+npm run dev        # démarre sur http://localhost:5173
+```
+
+Ouvre <http://localhost:5173> (dev avec HMR) ou <http://localhost:8000>
+(version buildée servie par FastAPI après `npm run build`).
+
+> Le frontend en mode `npm run dev` pointe sur le serveur FastAPI via
+> `http://localhost:8000` pour la WebSocket. Les deux terminaux doivent
+> donc tourner simultanément.
+
+---
+
+### Arrêt
+
+`Ctrl+C` dans le terminal du serveur suffit à tout arrêter proprement.

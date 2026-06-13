@@ -24,12 +24,20 @@ tts: # F2.1
   voice: "ff_siwis"
   sample_rate: 24000
 
+# Si Kokoro n'est pas installé ou plante, le serveur peut utiliser piper-tts comme deuxième repli avant de basculer sur le moteur dummy
+#tts:
+#  engine: piper
+#  piper_model: models/fr_FR-siwis-medium.onnx
+#  sample_rate: 22050
+
+
 stt: # F3.2
-  model: "small"
+  model: "small"       # tiny | base | small | medium | large-v3
   language: "fr"
 
-llm: # F4.1
-  host: "http://localhost:11434"
-  model: "llama3.1:8b"
-  timeout: 30
-  tutoiement: true
+
+llm:  # F4.1
+  host: "http://localhost:11434"   # URL d'Ollama (défaut)
+  model: "llama3.1:8b"            # doit correspondre au modèle téléchargé
+  timeout: 30                     # secondes avant abandon de la génération
+  tutoiement: true                # Jarvis tutoie l'utilisateur
