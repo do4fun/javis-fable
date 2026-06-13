@@ -9,6 +9,8 @@
 
 import { Scene } from './scene.js';
 import { AvatarManager } from './avatar.js';
+import { JarvisSocket } from './ws.js';
+import { LipSync } from './lipsync.js';
 import { config } from './config.js';
 
 const canvas = document.getElementById('scene');
@@ -67,9 +69,48 @@ function showBootError(message) {
 
 // --- Chargement de l'avatar ----------------------------------------------
 const avatar = new AvatarManager(avatarEl, updateBoot);
+const lipsync = new LipSync(avatar);
 
-// Exposé pour les modules suivants (vie, émotions, lip-sync, UI).
-window.jarvis = { avatar, scene };
+// --- WebSocket : réception de l'audio TTS et lip-sync ---------------------
+const socket = new JarvisSocket();
+
+socket.on('tts_audio', (payload) => {
+  // Voie principale (avec words) ou secours (sans) selon le payload.
+  lipsync.play(payload).catch((err) => console.error('[lipsync]', err));
+});
+
+socket.on('state', (payload) => {
+  if (payload.state === 'idle') {
+    // Fin de parole : on s'assure que la bouche revient au neutre.
+    // (TalkingHead le fait déjà en voie principale ; ceci couvre le secours.)
+  }
+});
+
+// Barge-in : couper la parole immédiatement.
+function interrupt() {
+  lipsync.stop();
+  socket.send('interrupt', {});
+}
+
+// Premier geste utilisateur → débloque l'AudioContext (politique autoplay).
+window.addEventListener(
+  'pointerdown',
+  () => lipsync.resume(),
+  { once: true }
+);
+
+socket.connect();
+
+// Exposé pour les modules suivants (vie, émotions, UI) et le test manuel.
+// Ex. en console : jarvis.say("Bonjour, je suis Jarvis.")
+window.jarvis = {
+  avatar,
+  scene,
+  socket,
+  lipsync,
+  interrupt,
+  say: (text) => socket.send('user_text', { text }),
+};
 
 async function boot_() {
   rafId = requestAnimationFrame(frame); // démarre la scène de repli

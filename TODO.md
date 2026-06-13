@@ -232,10 +232,20 @@ Critères d'acceptation : POST de test /server/tests/test_tts.py génère
 un WAV français intelligible + timestamps cohérents, sans réseau.
 ```
 
-### ☐ F2.2 — Lip-sync précis côté client
+### ☑ F2.2 — Lip-sync précis côté client
 
 **But :** lèvres parfaitement synchronisées sur la voix locale.
 **Dépend de :** F1.1, F2.1.
+**Statut :** livré. `web/src/lipsync.js` : voie principale (texte+timing) qui
+reconstruit un AudioBuffer depuis `tts_audio` (PCM base64) et délègue à
+TalkingHead `speakAudio({audio, words, wtimes, wdurations})` (lipsyncLang fr,
+horloge AudioContext unique) ; voie de secours audio-driven (`audioVisemes.js`,
+AnalyserNode → jawOpen + voyelle, lissage/co-articulation) quand `words` absent ;
+accentuation (hochement) sur mots longs ; `stop()` coupe l'audio et neutralise la
+bouche (`viseme_sil`) en < 100 ms. Client WS frontend (`ws.js`) ajouté.
+**Test manuel :** avatar chargé, console `jarvis.say("Bonjour, je suis Jarvis.")`
+→ l'avatar parle, lèvres calées ; couper via `jarvis.interrupt()`. Repli testable
+en envoyant un `tts_audio` sans `words`.
 
 ```
 PROMPT F2.2
@@ -463,7 +473,7 @@ fonctionnelle ; `make check` passe au vert.
 |F1.3|Comportements autonomes      |☐     |dev/f1.3-life        |
 |F1.4|Système d’émotions           |☐     |dev/f1.4-emotions    |
 |F2.1|TTS local Kokoro             |☑     |dev/f2.1-tts         |
-|F2.2|Lip-sync précis              |☐     |dev/f2.2-lipsync     |
+|F2.2|Lip-sync précis              |☑     |dev/f2.2-lipsync     |
 |F3.1|Micro + VAD                  |☐     |dev/f3.1-mic-vad     |
 |F3.2|STT Whisper local            |☐     |dev/f3.2-stt         |
 |F4.1|Cerveau Ollama               |☐     |dev/f4.1-brain       |

@@ -104,6 +104,7 @@ export class AvatarManager {
     }
 
     this.ready = true;
+    this._meshesCache = null; // (re)construit le cache au premier accès
     const report = this._checkMorphs();
     this._status(1, 'Avatar prêt.', true);
     return { ok: true, report };
@@ -131,16 +132,36 @@ export class AvatarManager {
 
   // Récupère la liste des morph targets exposés par le modèle chargé.
   _availableMorphs() {
-    try {
-      // TalkingHead expose les dictionnaires de morphs sur l'objet avatar.
-      const dict =
-        this.head?.morphs ||
-        this.head?.avatar?.morphs ||
-        this.head?.mtAvatar ||
-        {};
-      return Object.keys(dict);
-    } catch {
-      return [];
+    const names = new Set();
+    for (const mesh of this._morphMeshes()) {
+      for (const k of Object.keys(mesh.morphTargetDictionary || {})) names.add(k);
+    }
+    return [...names];
+  }
+
+  // Localise (et met en cache) les meshes porteurs de morph targets.
+  _morphMeshes() {
+    if (this._meshesCache) return this._meshesCache;
+    const root =
+      this.head?.armature || this.head?.avatar?.scene || this.head?.scene || null;
+    const meshes = [];
+    if (root && typeof root.traverse === 'function') {
+      root.traverse((o) => {
+        if (o.morphTargetDictionary && o.morphTargetInfluences) meshes.push(o);
+      });
+    }
+    this._meshesCache = meshes;
+    return meshes;
+  }
+
+  // Applique directement une valeur de morph target (voie de secours F2.2).
+  // La voie principale passe par TalkingHead.speakAudio() ; ceci sert au
+  // driver audio-driven quand les timings de mots sont absents.
+  setMorph(name, value) {
+    const v = Math.max(0, Math.min(1, value));
+    for (const mesh of this._morphMeshes()) {
+      const idx = mesh.morphTargetDictionary[name];
+      if (idx !== undefined) mesh.morphTargetInfluences[idx] = v;
     }
   }
 
