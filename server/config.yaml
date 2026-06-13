@@ -14,6 +14,10 @@ cors:
     - "http://localhost:8000"
     - "http://localhost:5173"
 
+# --- à modifier par Claude : engin par défaut ---
+# tts:
+#  engine: dummy   # onde sinusoïdale, aucune dépendance
+
 # --- Réservé pour les fonctionnalités suivantes ---
 tts: # F2.1
   engine: "kokoro"

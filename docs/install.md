@@ -44,10 +44,83 @@ TTS principal. Les poids sont téléchargés automatiquement au **premier appel*
 
 ### Installation de Kokoro
 
+Kokoro requiert **Python 3.10 ou supérieur**. Vérifie avant d'installer :
+
 ```bash
-# Avec le venv activé (voir rappel ci-dessus)
+# Windows
+.venv\Scripts\python --version
+
+# Unix
+python --version
+```
+
+Si la version est correcte, installe Kokoro dans le venv activé :
+
+```bash
+# Windows
+cd server
+.venv\Scripts\activate
+pip install kokoro soundfile
+
+# Unix
+cd server
+source .venv/bin/activate
 pip install kokoro soundfile
 ```
+
+> **Erreur `No module named 'kokoro'` lors du test ?** Cela signifie que Kokoro
+> n'est pas installé dans le venv courant. Assure-toi d'avoir activé le venv
+> (`activate`) avant de lancer `pip install`, puis relance le script.
+
+### Dépendance système : espeak-ng (obligatoire pour le français)
+
+Kokoro utilise **espeak-ng** comme backend de phonémisation pour le français.
+Ce n'est **pas** un package pip — c'est un outil système à installer
+séparément. Sans lui, Kokoro accepte le texte mais synthétise du **silence**
+(durée 0.00s dans le script de test).
+
+**Diagnostic :** si `tts_demo.py` affiche `Écrit out.wav — 0.00s`, espeak-ng
+est absent ou introuvable.
+
+#### Installation de espeak-ng
+
+**Windows :**
+
+1. Télécharge l'installateur depuis
+   <https://github.com/espeak-ng/espeak-ng/releases> (prends le `.msi` ou
+   `.exe` de la dernière release).
+2. Lance l'installateur et laisse-le cocher **"Add to PATH"**.
+3. Ferme et réouvre le terminal (PowerShell), puis vérifie :
+
+```powershell
+espeak-ng --version
+# → eSpeak NG text-to-speech: 1.x.x  ...
+```
+
+**Unix / macOS :**
+
+```bash
+# Debian / Ubuntu
+sudo apt install espeak-ng
+
+# macOS
+brew install espeak-ng
+```
+
+**Vérification après installation :**
+
+```bash
+# Depuis server/, venv activé
+python tests/tts_demo.py "Bonjour, je suis Jarvis."
+# → Écrit out.wav — 2.35s @ 24000 Hz  (durée > 0)
+#   [ 0.00 →  0.45] Bonjour,
+#   [ 0.45 →  0.72] je
+#   ...
+```
+
+Si la durée est maintenant positive mais qu'on n'entend toujours rien, ouvre
+directement `server/out.wav` dans un lecteur audio (VLC, Windows Media Player)
+pour confirmer que le fichier contient bien de l'audio.
 
 ### Configuration de Kokoro
 
@@ -73,6 +146,10 @@ python tests/tts_demo.py "Bonjour, je suis Jarvis."
 
 Au premier lancement, Kokoro télécharge ses poids (~350 Mo). Les appels
 suivants sont hors-ligne.
+
+> **Tester sans Kokoro :** mets `engine: dummy` dans `server/config.yaml` pour
+> utiliser le moteur de repli (onde sinusoïdale, aucune dépendance). Le WAV
+> généré confirme que le reste du pipeline fonctionne correctement.
 
 ---
 
