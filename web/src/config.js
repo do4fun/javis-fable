@@ -30,6 +30,29 @@ export const config = {
     keyIntensity: 1.1,
   },
 
+  // Avatar (F1.1) : TalkingHead + Ready Player Me, 100 % local.
+  avatar: {
+    // GLB déposé localement (cf. /docs/avatar.md). Jamais d'URL readyplayer.me.
+    glbUrl: '/avatars/jarvis.glb',
+    // Module TalkingHead vendorisé (import dynamique). Voir /web/vendor.
+    modulePath: '/vendor/talkinghead/talkinghead.mjs',
+    // Humeur initiale et langue de lip-sync (français).
+    mood: 'neutral',
+    lipsyncLang: 'fr',
+    // Cadrage caméra TalkingHead : 'head' (tête-épaules) ou 'full' (plan américain).
+    defaultView: 'head',
+    cameraView: 'upper', // vue interne TalkingHead au chargement
+  },
+
   // Accès debug : ?debug dans l'URL active les panneaux de réglage (F1.2).
   debug: new URLSearchParams(window.location.search).has('debug'),
 };
+
+// Visèmes Oculus + quelques ARKit clés, attendus sur l'avatar RPM.
+// Sert au rapport de compatibilité au chargement (F1.1).
+export const REQUIRED_MORPHS = [
+  'viseme_sil', 'viseme_PP', 'viseme_FF', 'viseme_TH', 'viseme_DD',
+  'viseme_kk', 'viseme_CH', 'viseme_SS', 'viseme_nn', 'viseme_RR',
+  'viseme_aa', 'viseme_E', 'viseme_I', 'viseme_O', 'viseme_U',
+  'eyeBlinkLeft', 'eyeBlinkRight', 'jawOpen', 'mouthSmileLeft', 'mouthSmileRight',
+];

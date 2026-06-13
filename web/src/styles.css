@@ -29,6 +29,17 @@ body {
     env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
+#avatar {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#avatar canvas {
+  display: block;
+}
+
 #scene {
   position: fixed;
   inset: 0;
@@ -36,6 +47,11 @@ body {
   height: 100%;
   display: block;
   touch-action: none; /* on gère nous-mêmes les gestes (regard, caméra) */
+}
+
+/* Quand l'avatar TalkingHead est actif, on masque la scène de repli. */
+body.avatar-active #scene {
+  display: none;
 }
 
 #hud {
@@ -78,6 +94,34 @@ body {
   font-size: 0.95rem;
   letter-spacing: 0.02em;
   opacity: 0.8;
+  max-width: 28rem;
+  text-align: center;
+  padding: 0 1rem;
+}
+
+.boot-bar {
+  width: min(260px, 70vw);
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.boot-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  transition: width 0.25s ease;
+}
+
+/* Message d'erreur de chargement : plus lisible, ton orangé. */
+#boot.error .boot-spinner {
+  border-top-color: #ff8c4e;
+  animation: none;
+}
+#boot.error .boot-label {
+  opacity: 1;
+  color: #ffd2b3;
 }
 
 @keyframes spin {

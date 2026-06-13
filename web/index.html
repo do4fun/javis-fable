@@ -12,16 +12,22 @@
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
-    <!-- Canvas WebGL plein écran : la scène 3D y est rendue (scene.js). -->
+    <!-- Conteneur de rendu de l'avatar (TalkingHead gère son propre WebGL). -->
+    <div id="avatar"></div>
+
+    <!-- Canvas WebGL de repli : scène placeholder si l'avatar n'est pas dispo. -->
     <canvas id="scene"></canvas>
 
     <!-- Zone UI superposée, vide pour l'instant (le HUD arrive en F5.2). -->
     <div id="hud" aria-live="polite"></div>
 
-    <!-- Écran de chargement simple (l'avatar et sa barre arrivent en F1.1). -->
+    <!-- Écran de chargement : spinner + barre de progression + message. -->
     <div id="boot">
       <div class="boot-spinner" aria-hidden="true"></div>
-      <p class="boot-label">Initialisation de Jarvis…</p>
+      <p class="boot-label" id="boot-label">Initialisation de Jarvis…</p>
+      <div class="boot-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+        <div class="boot-bar-fill" id="boot-bar-fill"></div>
+      </div>
     </div>
 
     <script type="module" src="/src/main.js"></script>

@@ -78,10 +78,20 @@ tout fonctionne sans connexion Internet.
 
 ## PHASE 1 — Avatar & rendu
 
-### ☐ F1.1 — Intégration TalkingHead + avatar Ready Player Me
+### ☑ F1.1 — Intégration TalkingHead + avatar Ready Player Me
 
 **But :** un humain 3D corps entier, réaliste, visible dans le navigateur.
 **Dépend de :** F0.1.
+**Statut :** livré. `web/src/avatar.js` (`AvatarManager`) instancie TalkingHead via
+import dynamique vendorisé (`@vite-ignore` → build autonome), charge `jarvis.glb`
+local, expose `load/speak/setMood/lookAt/playGesture/stop/setView`, loggue un
+rapport de compatibilité des morph targets, écran de chargement avec barre de
+progression et repli lisible si le GLB/module manque. Procédure d'export RPM
+(ARKit + visèmes Oculus) dans `docs/avatar.md`.
+**Test manuel :** déposer `talkinghead.mjs` (vendor) + `jarvis.glb` (public/avatars),
+ajouter l'import map (docs/avatar.md), puis `npm run dev` → avatar visible, idle
+natif actif, aucune requête réseau externe. Sans assets : message d'aide + scène
+de démonstration.
 
 ```
 PROMPT F1.1
@@ -440,7 +450,7 @@ fonctionnelle ; `make check` passe au vert.
 |----|-----------------------------|------|---------------------|
 |F0.1|Scaffolding frontend         |☑     |dev/f0.1-scaffold-web|
 |F0.2|Serveur FastAPI + WebSocket  |☑     |dev/f0.2-server-ws   |
-|F1.1|TalkingHead + Ready Player Me|☐     |dev/f1.1-avatar      |
+|F1.1|TalkingHead + Ready Player Me|☑     |dev/f1.1-avatar      |
 |F1.2|Environnement 3D             |☐     |dev/f1.2-environment |
 |F1.3|Comportements autonomes      |☐     |dev/f1.3-life        |
 |F1.4|Système d’émotions           |☐     |dev/f1.4-emotions    |
