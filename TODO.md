@@ -14,10 +14,16 @@ Chaque fonctionnalité ci-dessous est autonome et intégrable séparément. Le b
 
 ## PHASE 0 — Fondations
 
-### ☐ F0.1 — Scaffolding frontend (Vite + Three.js + TalkingHead)
+### ☑ F0.1 — Scaffolding frontend (Vite + Three.js + TalkingHead)
 
 **But :** base web qui affiche une scène 3D vide, prête à recevoir l’avatar.
 **Dépend de :** rien.
+**Statut :** livré. Frontend Vite vanilla dans `/web` (scene.js, main.js, config.js),
+ESLint + Prettier, `three` épinglé, dossier `/web/vendor` documenté (import map de
+secours hors-ligne). `npm run build` produit un `dist/` autonome.
+**Test manuel :** `cd web && npm install && npm run dev` → scène éclairée + écran de
+chargement qui disparaît ; `npm run build && npm run preview` → bundle statique sans
+réseau (vérifier l'onglet Network : aucune requête externe).
 
 ```
 PROMPT F0.1
@@ -426,7 +432,7 @@ fonctionnelle ; `make check` passe au vert.
 
 |ID  |Fonctionnalité               |Statut|Branche suggérée     |
 |----|-----------------------------|------|---------------------|
-|F0.1|Scaffolding frontend         |☐     |dev/f0.1-scaffold-web|
+|F0.1|Scaffolding frontend         |☑     |dev/f0.1-scaffold-web|
 |F0.2|Serveur FastAPI + WebSocket  |☐     |dev/f0.2-server-ws   |
 |F1.1|TalkingHead + Ready Player Me|☐     |dev/f1.1-avatar      |
 |F1.2|Environnement 3D             |☐     |dev/f1.2-environment |

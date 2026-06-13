@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# Gros assets binaires : non versionnés par défaut (cf. /docs/avatar.md
+# et /docs/install.md pour la procédure de récupération locale).
+public/avatars/*.glb
+public/anims/*.fbx
+public/env/*.hdr
+public/models/*.onnx
