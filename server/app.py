@@ -137,10 +137,20 @@ async def websocket_endpoint(ws: WebSocket) -> None:
     # On annonce l'état initial dès la connexion.
     await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}))
 
+    # Buffer audio par connexion : les trames binaires PCM 16 kHz (F3.1) y sont
+    # accumulées entre les marqueurs VAD start/end (consommées par le STT, F3.2).
+    ws.state_audio = bytearray()
+
     try:
         while True:
-            raw = await ws.receive_text()
-            await _handle_message(ws, raw)
+            # Accepte texte (enveloppes JSON) ET binaire (chunks audio).
+            msg = await ws.receive()
+            if msg.get("type") == "websocket.disconnect":
+                break
+            if (text := msg.get("text")) is not None:
+                await _handle_message(ws, text)
+            elif (data := msg.get("bytes")) is not None:
+                ws.state_audio.extend(data)
     except WebSocketDisconnect:
         manager.disconnect(ws)
     except Exception:  # robustesse : on ne laisse jamais une connexion tuer le serveur
@@ -207,9 +217,25 @@ async def _handle_message(ws: WebSocket, raw: str) -> None:
         )
 
     elif env.type == ClientMsg.AUDIO_CHUNK:
-        # Stub : F3.1/F3.2 brancheront le VAD/STT. On ne renvoie rien ici pour
-        # ne pas inonder le client (les chunks arrivent toutes les ~30 ms).
-        await bus.publish("audio_chunk", {"payload": env.payload, "ws": ws})
+        # Marqueurs VAD du client (F3.1) : 'start' ouvre un segment, 'end' le
+        # clôt. Les trames PCM elles-mêmes arrivent en binaire (cf. boucle /ws)
+        # et sont accumulées dans ws.state_audio.
+        event = env.payload.get("event")
+        if event == "start":
+            ws.state_audio = bytearray()
+            await manager.send(
+                ws, Envelope.make(ServerMsg.STATE, {"state": "listening"}, id=env.id)
+            )
+        elif event == "end":
+            audio = bytes(getattr(ws, "state_audio", b""))
+            ws.state_audio = bytearray()
+            # F3.2 (STT) s'abonnera à 'speech_segment' pour transcrire ce buffer.
+            await bus.publish(
+                "speech_segment",
+                {"audio": audio, "sample_rate": env.payload.get("sample_rate", 16000), "ws": ws},
+            )
+        else:
+            await bus.publish("audio_chunk", {"payload": env.payload, "ws": ws})
 
 
 async def _speak(ws: WebSocket, text: str, corr_id: str | None = None) -> None:

@@ -60,9 +60,17 @@ cache localement. Détaillé en F3.2.
 
 ## VAD — Silero (F3.1)
 
-Le modèle ONNX (`silero_vad.onnx`) est vendorisé côté navigateur dans
-`web/public/models/`. Récupère-le depuis le dépôt Silero VAD et dépose-le là
-(non versionné).
+Le VAD tourne **dans le navigateur** via onnxruntime-web, 100 % local :
+
+1. Dépose le modèle `silero_vad.onnx` dans `web/public/models/` (récupéré
+   depuis le dépôt Silero VAD ; non versionné).
+2. Vendorise le runtime onnxruntime-web (ESM + wasm) dans `web/public/vendor/ort/`
+   (fichiers `ort.min.mjs` et `*.wasm`) — aucun CDN. Le chemin est configurable
+   dans `web/src/config.js` (`mic.vad.ortPath`).
+
+> Sans ces fichiers, le VAD bascule automatiquement sur un repli **énergétique**
+> (RMS + plancher de bruit adaptatif), sans dépendance ni téléchargement. Moins
+> fin que Silero mais fonctionnel et hors-ligne.
 
 ## LLM — Ollama (F4.1)
 

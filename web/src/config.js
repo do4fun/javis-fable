@@ -66,6 +66,16 @@ export const config = {
     blink: { minMs: 2000, maxMs: 6000, thinkingFactor: 0.6 },
   },
 
+  // Micro + VAD (F3.1).
+  mic: {
+    mode: 'handsfree', // 'ptt' | 'toggle' | 'handsfree'
+    vad: {
+      engine: 'silero', // 'silero' (ONNX) ou 'energy' (repli)
+      modelUrl: '/models/silero_vad.onnx',
+      ortPath: '/vendor/ort/',
+    },
+  },
+
   // Accès debug : ?debug dans l'URL active les panneaux de réglage (F1.2).
   debug: new URLSearchParams(window.location.search).has('debug'),
 };

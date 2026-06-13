@@ -13,6 +13,7 @@ import { JarvisSocket } from './ws.js';
 import { LipSync } from './lipsync.js';
 import { LifeEngine } from './life.js';
 import { EmotionEngine } from './emotions.js';
+import { MicCapture } from './mic.js';
 import { config } from './config.js';
 
 const canvas = document.getElementById('scene');
@@ -123,6 +124,44 @@ window.addEventListener(
 
 socket.connect();
 
+// --- Micro + VAD (F3.1) ---------------------------------------------------
+const mic = new MicCapture({
+  socket,
+  isAvatarSpeaking: () => lipsync.speaking,
+  onStatus: (s) => {
+    if (s.error) console.warn(s.error);
+    micBtn?.classList.toggle('listening', !!s.listening);
+    micBtn?.classList.toggle('speech', !!s.speech);
+  },
+  onListen: () => {
+    // À l'écoute : l'avatar prend l'air « réflexion » et incline la tête.
+    emotions.setEmotion('reflexion', { intensity: 0.5, holdMs: 8000 });
+  },
+  onIdle: () => {},
+});
+
+// Bouton micro flottant (HUD complet en F5.2).
+const micBtn = document.createElement('button');
+micBtn.id = 'mic-btn';
+micBtn.title = 'Parler à Jarvis';
+micBtn.textContent = '🎤';
+micBtn.style.pointerEvents = 'auto';
+document.getElementById('hud')?.appendChild(micBtn);
+
+let micReady = false;
+micBtn.addEventListener('click', async () => {
+  lipsync.resume();
+  if (!micReady) {
+    micReady = await mic.init();
+    if (!micReady) {
+      micBtn.classList.add('denied');
+      return;
+    }
+  }
+  if (mic.active) mic.stop();
+  else mic.start();
+});
+
 // Exposé pour les modules suivants (vie, émotions, UI) et le test manuel.
 // Ex. en console : jarvis.say("Bonjour, je suis Jarvis.")
 window.jarvis = {
@@ -132,6 +171,7 @@ window.jarvis = {
   lipsync,
   life,
   emotions,
+  mic,
   interrupt,
   say: (text) => socket.send('user_text', { text }),
   emote: (name, intensity = 1) => emotions.setEmotion(name, { intensity }),

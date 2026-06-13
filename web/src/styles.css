@@ -130,6 +130,41 @@ body.avatar-active #scene {
   }
 }
 
+/* Bouton micro flottant (F3.1) — remplacé par le HUD complet en F5.2. */
+#mic-btn {
+  position: fixed;
+  bottom: calc(1.2rem + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 15;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid #2a3240;
+  background: #1c2430;
+  color: #e6edf3;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition:
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+#mic-btn.listening {
+  background: #1e3a2a;
+  box-shadow: 0 0 0 4px rgba(78, 161, 255, 0.25);
+}
+
+#mic-btn.speech {
+  box-shadow: 0 0 0 6px rgba(46, 164, 79, 0.45);
+}
+
+#mic-btn.denied {
+  background: #3a1e1e;
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Accessibilité : on coupe les animations si l'utilisateur le demande. */
 @media (prefers-reduced-motion: reduce) {
   .boot-spinner {

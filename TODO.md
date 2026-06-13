@@ -291,10 +291,21 @@ horodaté) ; la voie de secours fonctionne avec un simple fichier MP3.
 
 ## PHASE 3 — Écoute
 
-### ☐ F3.1 — Capture micro + détection de voix (VAD)
+### ☑ F3.1 — Capture micro + détection de voix (VAD)
 
 **But :** écouter l’utilisateur sans bouton à maintenir.
 **Dépend de :** F0.2.
+**Statut :** livré. AudioWorklet `web/public/worklets/pcm16k-worklet.js` (PCM 16 kHz
+mono, trames 30 ms). `web/src/vad.js` : Silero VAD (ONNX via onnxruntime-web
+vendorisé) avec repli énergétique automatique hors-ligne. `web/src/mic.js`
+(`MicCapture`) : modes PTT/toggle/mains-libres, envoi binaire des trames pendant la
+parole + marge 300 ms, marqueurs VAD start/end, barge-in (interrupt si l'avatar
+parle), avatar « réflexion » à l'écoute. Serveur : la boucle `/ws` accepte
+désormais texte ET binaire ; `audio_chunk` start/end bufferise et publie
+`speech_segment` (consommé par le STT en F3.2).
+**Test manuel :** clic sur le bouton micro → permission ; parler → indicateur de
+parole, audio envoyé uniquement pendant la parole (binaire), refus micro → message
+clair + repli clavier. Aucune donnée hors localhost.
 
 ```
 PROMPT F3.1
@@ -492,7 +503,7 @@ fonctionnelle ; `make check` passe au vert.
 |F1.4|Système d’émotions           |☑     |dev/f1.4-emotions    |
 |F2.1|TTS local Kokoro             |☑     |dev/f2.1-tts         |
 |F2.2|Lip-sync précis              |☑     |dev/f2.2-lipsync     |
-|F3.1|Micro + VAD                  |☐     |dev/f3.1-mic-vad     |
+|F3.1|Micro + VAD                  |☑     |dev/f3.1-mic-vad     |
 |F3.2|STT Whisper local            |☐     |dev/f3.2-stt         |
 |F4.1|Cerveau Ollama               |☐     |dev/f4.1-brain       |
 |F4.2|Mémoire & outils             |☐     |dev/f4.2-memory      |
