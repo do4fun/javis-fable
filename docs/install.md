@@ -6,13 +6,15 @@ réseau n'est nécessaire. Cette page regroupe ces téléchargements uniques.
 
 ## Vue d'ensemble
 
-| Modèle            | Fonctionnalité | Taille indicative | Obligatoire ?                |
-|-------------------|----------------|-------------------|------------------------------|
-| Kokoro TTS (FR)   | F2.1 (voix)    | ~350 Mo           | recommandé (repli dispo)     |
-| piper-tts (fr_FR) | F2.1 (repli)   | ~60 Mo            | optionnel                    |
-| faster-whisper    | F3.2 (écoute)  | ~150–500 Mo       | requis pour la voix entrante |
-| Silero VAD (ONNX) | F3.1 (VAD)     | ~2 Mo             | requis pour mains-libres     |
-| LLM via Ollama    | F4.1 (cerveau) | ~4–5 Go           | requis pour converser        |
+| Modèle                 | Fonctionnalité | Taille indicative | Obligatoire ?                |
+|------------------------|----------------|-------------------|------------------------------|
+| Avatar RPM (GLB)       | F1.1 (avatar)  | ~5–15 Mo          | requis pour l'avatar 3D      |
+| TalkingHead + Three.js | F1.1 (avatar)  | ~2 Mo (vendorisé) | requis pour l'avatar 3D      |
+| Kokoro TTS (FR)        | F2.1 (voix)    | ~350 Mo           | recommandé (repli dispo)     |
+| piper-tts (fr_FR)      | F2.1 (repli)   | ~60 Mo            | optionnel                    |
+| faster-whisper         | F3.2 (écoute)  | ~150–500 Mo       | requis pour la voix entrante |
+| Silero VAD (ONNX)      | F3.1 (VAD)     | ~2 Mo             | requis pour mains-libres     |
+| LLM via Ollama         | F4.1 (cerveau) | ~4–5 Go           | requis pour converser        |
 
 > Sans aucun modèle vocal, le TTS bascule automatiquement sur un moteur de
 > repli (`dummy`, onde sinusoïdale) : utile pour développer, pas pour écouter.
@@ -445,6 +447,79 @@ python tests/tts_demo.py "Bonjour, je suis Jarvis."
 make check
 # → ESLint + vitest + build (web) ; ruff + pytest (serveur)
 ```
+
+---
+
+## Avatar 3D — Ready Player Me + TalkingHead (F1.1)
+
+L'avatar est un fichier GLB exporté depuis Ready Player Me avec les blendshapes
+ARKit (expressions) et les visèmes Oculus (lip-sync). TalkingHead et Three.js
+sont déjà **vendorisés dans le dépôt** (`web/vendor/`) — aucune action requise
+de ce côté.
+
+### Étape 1 — Créer l'avatar sur Ready Player Me
+
+1. Va sur <https://readyplayer.me> et crée un compte (gratuit) ou continue en
+   invité.
+2. Choisis **"Full Body"** (corps entier) — pas *Half Body* : TalkingHead
+   requiert le squelette complet pour les animations.
+3. Personnalise l'apparence à ton goût, puis clique **"Done"**.
+4. Sur la page finale, copie l'**ID** de l'avatar (24 caractères dans l'URL,
+   entre le dernier `/` et `.glb`).
+
+### Étape 2 — Télécharger le GLB avec les bons paramètres
+
+L'URL d'export doit inclure les morph targets ARKit + visèmes Oculus.
+Remplace `<TON_ID>` par l'ID copié à l'étape précédente :
+
+```text
+https://models.readyplayer.me/<TON_ID>.glb?morphTargets=ARKit,Oculus%20Visemes&textureAtlas=1024&pose=A&lod=0
+```
+
+| Paramètre                          | Rôle                                                  |
+|------------------------------------|-------------------------------------------------------|
+| `morphTargets=ARKit,Oculus Visemes`| 52 blendshapes ARKit + 15 visèmes Oculus (lip-sync)   |
+| `textureAtlas=1024`                | Atlas de textures fusionné (performance)              |
+| `pose=A`                           | Pose en A requise par TalkingHead pour les animations |
+| `lod=0`                            | Pleine résolution (`lod=1` si fichier trop lourd)     |
+
+**Téléchargement via PowerShell (Windows) :**
+
+```powershell
+Invoke-WebRequest `
+  -Uri "https://models.readyplayer.me/<TON_ID>.glb?morphTargets=ARKit,Oculus%20Visemes&textureAtlas=1024&pose=A&lod=0" `
+  -OutFile "web\public\avatars\jarvis.glb"
+```
+
+**Téléchargement via curl (Unix) :**
+
+```bash
+curl -L -o web/public/avatars/jarvis.glb \
+  "https://models.readyplayer.me/<TON_ID>.glb?morphTargets=ARKit,Oculus%20Visemes&textureAtlas=1024&pose=A&lod=0"
+```
+
+Ou ouvre l'URL dans un navigateur et enregistre le fichier dans
+`web/public/avatars/jarvis.glb`.
+
+> Le fichier `jarvis.glb` n'est **pas versionné** (cf. `web/.gitignore`) — il
+> reste sur ta machine uniquement.
+
+### Étape 3 — Vérification
+
+Lance le serveur (`make start` ou `.\start.ps1`), ouvre la console du navigateur
+et vérifie :
+
+```text
+[avatar] Tous les blendshapes requis sont présents.
+```
+
+Si tu vois des blendshapes manquants, le GLB a été exporté sans les paramètres
+`ARKit,Oculus Visemes` — renouvelle le téléchargement avec l'URL complète
+ci-dessus.
+
+> **Sans `jarvis.glb`**, Jarvis démarre quand même et affiche un message
+> explicatif avec la scène 3D de démonstration. La voix et la conversation
+> fonctionnent normalement.
 
 ---
 

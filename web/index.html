@@ -10,6 +10,17 @@
     <meta name="theme-color" content="#0a0e14" />
     <title>Jarvis</title>
     <link rel="stylesheet" href="/src/styles.css" />
+    <!-- Import map : résout 'three' et 'three/addons/' vers les fichiers
+         vendorisés locaux utilisés par talkinghead.mjs au runtime.
+         Doit apparaître avant tout <script type="module">. -->
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "/vendor/three/three.module.js",
+        "three/addons/": "/vendor/three/addons/"
+      }
+    }
+    </script>
   </head>
   <body>
     <!-- Conteneur de rendu de l'avatar (TalkingHead gère son propre WebGL). -->
