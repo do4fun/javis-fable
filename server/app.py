@@ -32,7 +32,9 @@ from core.protocol import (
     Envelope,
     ServerMsg,
 )
+from modules import tools
 from modules.brain import Brain
+from modules.memory import Memory
 from modules.stt import STTService, make_stt_engine
 from modules.tags import (
     EmotionEvent,
@@ -97,6 +99,8 @@ async def lifespan(app: FastAPI):
     app.state.tts = TTSService(make_engine(app.state.config.get("tts")))
     app.state.stt = STTService(make_stt_engine(app.state.config.get("stt")))
     app.state.brain = Brain(app.state.config.get("llm"))
+    app.state.memory = Memory()  # F4.2 : SQLite local
+    app.state.allow_network = bool(app.state.config.get("allow_network", False))
 
     # Abonnement bus : un segment de parole (F3.1) → transcription (F3.2).
     app.state.bus.subscribe("speech_segment", _on_speech_segment)
@@ -156,6 +160,61 @@ def _cancel_event(ws: WebSocket) -> "asyncio.Event":
     return ev
 
 
+# --- Commandes mémoire (F4.2) ------------------------------------------------
+
+import re as _re  # local, pour rester groupé avec la logique mémoire
+
+_RE_FORGET = _re.compile(r"\boublie tout\b|\befface tout\b|\boublie ce que tu sais\b", _re.I)
+_RE_NAME = _re.compile(r"\b(?:je m'appelle|mon prénom est|appelle-moi)\s+([\wÀ-ÿ-]+)", _re.I)
+_RE_REMEMBER = _re.compile(r"\b(?:souviens-toi que|rappelle-toi que|retiens que)\s+(.+)", _re.I)
+_RE_ASK_NAME = _re.compile(r"\b(?:comment je m'appelle|quel est mon prénom|mon nom)\b", _re.I)
+
+
+def handle_memory_command(text: str, memory: Memory) -> str | None:
+    """Traite les commandes mémoire explicites. Renvoie une réponse balisée ou None."""
+    if _RE_FORGET.search(text):
+        memory.purge_all()
+        return "[emo:neutre] C'est fait, j'ai tout effacé. On repart de zéro."
+
+    if m := _RE_NAME.search(text):
+        prenom = m.group(1).strip().capitalize()
+        memory.set_profile("prenom", prenom)
+        return f"[emo:joie][geste:salut] Enchanté, {prenom} !"
+
+    if _RE_ASK_NAME.search(text):
+        prenom = memory.get_profile().get("prenom")
+        if prenom:
+            return f"[emo:joie] Tu t'appelles {prenom}, bien sûr."
+        return "[emo:reflexion] Tu ne me l'as pas encore dit. Comment tu t'appelles ?"
+
+    if m := _RE_REMEMBER.search(text):
+        fact = m.group(1).strip().rstrip(".")
+        prefs = memory.get_profile().get("preferences", "")
+        prefs = (prefs + " | " + fact).strip(" |") if prefs else fact
+        memory.set_profile("preferences", prefs)
+        return "[emo:neutre] D'accord, je m'en souviens."
+
+    return None
+
+
+def build_history(memory: Memory) -> list[dict]:
+    """Historique glissant (12 tours) + contexte profil/résumé en tête."""
+    history: list[dict] = []
+    profile = memory.get_profile()
+    summary = memory.get_summary()
+    context_bits = []
+    if profile.get("prenom"):
+        context_bits.append(f"L'utilisateur s'appelle {profile['prenom']}.")
+    if profile.get("preferences"):
+        context_bits.append(f"Préférences déclarées : {profile['preferences']}.")
+    if summary:
+        context_bits.append(f"Résumé de la conversation précédente : {summary}")
+    if context_bits:
+        history.append({"role": "system", "content": " ".join(context_bits)})
+    history.extend(memory.recent_turns(12))
+    return history
+
+
 async def _converse(ws: WebSocket, text: str, corr_id: str | None = None) -> None:
     """Tour de parole complet : LLM (streaming + balises) → émotion/geste/TTS.
 
@@ -170,6 +229,7 @@ async def _converse(ws: WebSocket, text: str, corr_id: str | None = None) -> Non
     manager: ConnectionManager = ws.app.state.manager
     brain: Brain = ws.app.state.brain
     tts: TTSService = ws.app.state.tts
+    memory: Memory = ws.app.state.memory
 
     cancel = _cancel_event(ws)
     cancel.clear()
@@ -178,15 +238,23 @@ async def _converse(ws: WebSocket, text: str, corr_id: str | None = None) -> Non
     parser = StreamTagParser()
     sentence = ""
     spoke = False
+    full_text = ""  # texte propre accumulé (pour la mémoire)
 
     await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "thinking"}, id=corr_id))
+
+    async def speak_text(t: str) -> None:
+        """Envoie du texte propre au client + le synthétise par phrase."""
+        nonlocal sentence, spoke, full_text
+        await manager.send(ws, Envelope.make(ServerMsg.LLM_TOKEN, {"token": t}))
+        sentence += t
+        full_text += t
+        await flush_sentence()
 
     async def flush_sentence(force: bool = False) -> None:
         nonlocal sentence, spoke
         chunk = sentence.strip()
         if not chunk:
             return
-        # On synthétise quand la phrase est terminée (ponctuation) ou en fin.
         if not force and chunk[-1] not in ".!?…":
             return
         sentence = ""
@@ -198,18 +266,24 @@ async def _converse(ws: WebSocket, text: str, corr_id: str | None = None) -> Non
                 return
             await manager.send(ws, tts_audio_envelope(tts_chunk))
 
+    # Commande mémoire explicite (oublie tout, prénom…) → réponse directe.
+    command_reply = handle_memory_command(text, memory)
+    token_source = (
+        _as_token_stream(command_reply)
+        if command_reply is not None
+        else brain.stream(text, history=build_history(memory), cancel=cancel)
+    )
+
+    memory.add_turn("user", text)
+
     try:
-        async for tok in brain.stream(text, cancel=cancel):
+        async for tok in token_source:
             if cancel.is_set():
                 break
             for ev in parser.feed(tok):
                 if isinstance(ev, TextEvent):
                     if ev.text:
-                        await manager.send(
-                            ws, Envelope.make(ServerMsg.LLM_TOKEN, {"token": ev.text})
-                        )
-                        sentence += ev.text
-                        await flush_sentence()
+                        await speak_text(ev.text)
                 elif isinstance(ev, EmotionEvent):
                     await manager.send(
                         ws,
@@ -218,25 +292,76 @@ async def _converse(ws: WebSocket, text: str, corr_id: str | None = None) -> Non
                         ),
                     )
                 elif isinstance(ev, GestureEvent):
-                    await manager.send(
-                        ws, Envelope.make(ServerMsg.GESTURE, {"name": ev.name})
-                    )
+                    await manager.send(ws, Envelope.make(ServerMsg.GESTURE, {"name": ev.name}))
                 elif isinstance(ev, ToolEvent):
-                    # Les outils sont interprétés en F4.2.
-                    await ws.app.state.bus.publish("tool_call", {"raw": ev.raw, "ws": ws})
+                    await _run_tool(ws, ev.raw, speak_text)
 
-        # Reste du tampon → dernière phrase.
         for ev in parser.flush():
             if isinstance(ev, TextEvent) and ev.text:
-                await manager.send(ws, Envelope.make(ServerMsg.LLM_TOKEN, {"token": ev.text}))
-                sentence += ev.text
+                await speak_text(ev.text)
         if not cancel.is_set():
             await flush_sentence(force=True)
     except Exception:
         log.exception("échec de la conversation")
         await manager.send(ws, Envelope.make(ServerMsg.ERROR, {"reason": "brain_failed"}))
     finally:
+        # Mémorise la réponse et résume si l'historique devient long.
+        if full_text.strip():
+            memory.add_turn("assistant", full_text.strip())
+        _maybe_summarize(memory)
         await manager.send(ws, Envelope.make(ServerMsg.STATE, {"state": "idle"}, id=corr_id))
+
+
+async def _as_token_stream(text: str):
+    """Adapte une chaîne en flux de tokens (pour réponses directes/repli)."""
+    yield text
+
+
+async def _run_tool(ws: WebSocket, raw: str, speak_text) -> None:
+    """Exécute un outil local et fait dire le résultat (F4.2)."""
+    allow_network = ws.app.state.allow_network
+
+    seconds = tools.parse_minuteur_seconds(raw)
+    if seconds:
+        asyncio.create_task(_timer_task(ws, seconds))
+        mins = int(seconds // 60)
+        label = f"{mins} minute{'s' if mins > 1 else ''}" if mins else f"{int(seconds)} secondes"
+        await speak_text(f"C'est parti pour {label}. ")
+        return
+
+    result = tools.execute(raw, allow_network=allow_network)
+    if result:
+        await speak_text(result + " ")
+
+
+async def _timer_task(ws: WebSocket, seconds: float) -> None:
+    """Minuteur : attend puis notifie l'utilisateur à l'oral."""
+    await asyncio.sleep(seconds)
+    try:
+        await ws.app.state.manager.send(
+            ws, Envelope.make(ServerMsg.EMOTION, {"name": "surprise", "intensity": 0.7})
+        )
+        await _speak(ws, "Ding ! Ton minuteur est terminé.")
+    except Exception:
+        pass  # connexion fermée : best-effort
+
+
+def _maybe_summarize(memory: Memory, keep_last: int = 12) -> None:
+    """Résume grossièrement les tours anciens et les élague (F4.2).
+
+    Résumé local et simple (concaténation condensée), sans appel réseau : on
+    garde une trace compacte de ce qui dépasse la fenêtre glissante.
+    """
+    old = memory.turns_before(keep_last)
+    if len(old) < 4:
+        return
+    snippets = [f"{t['role']}: {t['content']}" for t in old]
+    digest = " ".join(snippets)
+    if len(digest) > 600:
+        digest = digest[:600] + "…"
+    prev = memory.get_summary()
+    memory.set_summary((prev + " " + digest).strip()[-1200:])
+    memory.prune_to(keep_last)
 
 
 def tts_audio_envelope(chunk: TTSChunk, corr_id: str | None = None) -> Envelope:

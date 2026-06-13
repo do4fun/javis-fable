@@ -407,10 +407,20 @@ l'avatar sourit ([emo:joie] appliqué), parle la blague, premier mot
 audible < 2,5 s après la fin de la question.
 ```
 
-### ☐ F4.2 — Mémoire de conversation & petits outils
+### ☑ F4.2 — Mémoire de conversation & petits outils
 
 **But :** continuité du dialogue et utilité concrète.
 **Dépend de :** F4.1.
+**Statut :** livré. `server/modules/memory.py` : SQLite `server/data/memory.sqlite`
+(gitignore), historique glissant (12 tours), profil (prénom, préférences), résumé
+auto + élagage des tours anciens. `server/modules/tools.py` : `heure_date`,
+`date`, `calcul` (eval sûr par AST, pas d'exécution de code), `minuteur` (planifié,
+notification orale), `meteo` désactivée derrière `allow_network`. Intégration dans
+`_converse` : commandes « oublie tout » / « je m'appelle… » / « souviens-toi que… »,
+injection profil/historique dans le contexte LLM, exécution des balises `[tool:]`.
+**Test manuel :** « Je m'appelle X » puis redémarrer le serveur puis « Comment je
+m'appelle ? » → répond X ; « oublie tout » vide la base ; « calcule 12 fois 8 »
+reste oral. Aucun accès réseau tant que `allow_network=false`.
 
 ```
 PROMPT F4.2
@@ -527,7 +537,7 @@ fonctionnelle ; `make check` passe au vert.
 |F3.1|Micro + VAD                  |☑     |dev/f3.1-mic-vad     |
 |F3.2|STT Whisper local            |☑     |dev/f3.2-stt         |
 |F4.1|Cerveau Ollama               |☑     |dev/f4.1-brain       |
-|F4.2|Mémoire & outils             |☐     |dev/f4.2-memory      |
+|F4.2|Mémoire & outils             |☑     |dev/f4.2-memory      |
 |F5.1|Pipeline temps réel          |☐     |dev/f5.1-pipeline    |
 |F5.2|Interface utilisateur        |☐     |dev/f5.2-ui          |
 |F5.3|Perf & packaging             |☐     |dev/f5.3-packaging   |
