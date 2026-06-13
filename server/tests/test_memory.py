@@ -58,7 +58,7 @@ def test_prune_keeps_last(mem):
 
 
 def test_memory_commands(mem):
-    from app import handle_memory_command
+    from core.pipeline import handle_memory_command
 
     # Mémorise le prénom puis le restitue.
     r = handle_memory_command("Je m'appelle Camille", mem)

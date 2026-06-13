@@ -445,10 +445,20 @@ réseau tant que allow_network=false.
 
 ## PHASE 5 — Orchestration, UX & qualité
 
-### ☐ F5.1 — Pipeline temps réel complet & interruption
+### ☑ F5.1 — Pipeline temps réel complet & interruption
 
 **But :** boucle voix↔voix fluide, comme une vraie conversation.
 **Dépend de :** F2.2, F3.2, F4.1.
+**Statut :** livré. `server/core/pipeline.py` (`Pipeline`) : machine à états
+`idle→listening→thinking→speaking` diffusée au client, chaînage streaming intégral
+(VAD→STT→LLM→découpe phrases→TTS→audio+timings), `Turn` avec `trace_id` et jalons
+de latence (stt/first_token/first_audio) logués et renvoyés dans l'état final.
+Barge-in robuste : `interrupt` annule génération LLM, file TTS et tâches suivies,
+puis `gather` (pas de fuite asyncio). `app.py` slimé délègue au pipeline. Overlay
+`?debug` côté frontend affiche les métriques.
+**Test manuel :** 5 tours vocaux sans rechargement ; couper la parole 10× de suite.
+`make test` → `test_pipeline.py` (machine à états, 5 tours, barge-in sans fuite de
+tâches), 35 tests verts.
 
 ```
 PROMPT F5.1
@@ -538,7 +548,7 @@ fonctionnelle ; `make check` passe au vert.
 |F3.2|STT Whisper local            |☑     |dev/f3.2-stt         |
 |F4.1|Cerveau Ollama               |☑     |dev/f4.1-brain       |
 |F4.2|Mémoire & outils             |☑     |dev/f4.2-memory      |
-|F5.1|Pipeline temps réel          |☐     |dev/f5.1-pipeline    |
+|F5.1|Pipeline temps réel          |☑     |dev/f5.1-pipeline    |
 |F5.2|Interface utilisateur        |☐     |dev/f5.2-ui          |
 |F5.3|Perf & packaging             |☐     |dev/f5.3-packaging   |
 

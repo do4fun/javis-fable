@@ -165,6 +165,22 @@ body.avatar-active #scene {
   cursor: not-allowed;
 }
 
+/* Overlay de métriques de latence (?debug, F5.1). */
+#debug-metrics {
+  position: fixed;
+  top: calc(0.6rem + env(safe-area-inset-top));
+  right: 0.6rem;
+  z-index: 30;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  color: #9fd0ff;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  max-width: 60vw;
+  pointer-events: none;
+}
+
 /* Accessibilité : on coupe les animations si l'utilisateur le demande. */
 @media (prefers-reduced-motion: reduce) {
   .boot-spinner {

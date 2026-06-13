@@ -99,6 +99,8 @@ socket.on('state', (payload) => {
   life.setState(payload.state);
   // Inhibe jawOpen des émotions pendant la parole (priorité visèmes).
   emotions.setSpeaking(payload.state === 'speaking');
+  // Panneau ?debug : métriques de latence du pipeline (F5.1).
+  if (config.debug && payload.metrics) showMetrics(payload.metrics);
 });
 
 // Bus émotion (F1.4 / F4.1) : {name, intensity} déclenche l'émotion.
@@ -118,6 +120,18 @@ socket.on('gesture', (payload) => {
 function interrupt() {
   lipsync.stop();
   socket.send('interrupt', {});
+}
+
+// Overlay de métriques (?debug) — budget cible : fin de parole → 1er son < 2,5 s.
+let debugEl = null;
+function showMetrics(metrics) {
+  if (!debugEl) {
+    debugEl = document.createElement('div');
+    debugEl.id = 'debug-metrics';
+    document.getElementById('hud')?.appendChild(debugEl);
+  }
+  const fa = metrics.first_audio ?? '—';
+  debugEl.textContent = `latence 1er son: ${fa} ms · ${JSON.stringify(metrics)}`;
 }
 
 // Premier geste utilisateur → débloque l'AudioContext (politique autoplay).
