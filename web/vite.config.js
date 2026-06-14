@@ -1,10 +1,34 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
+import fs from 'node:fs';
 
 // Configuration Vite — projet 100 % local, aucun CDN à l'exécution.
 // Le build doit produire un bundle autonome servable par un simple
 // serveur de fichiers statiques (cf. /server qui sert /web/dist en F0.2).
+
+// Les fichiers dans public/vendor/ sont des modules ES chargés dynamiquement
+// à l'exécution (talkinghead.mjs, three, lipsync-*.mjs). Vite refuse de les
+// servir via import() en dev car ils sont dans public/. Ce plugin les sert
+// directement avec le bon Content-Type, bypass la restriction dev uniquement.
+const serveVendorModules = {
+  name: 'serve-vendor-modules',
+  configureServer(server) {
+    server.middlewares.use((req, res, next) => {
+      if (!req.url?.startsWith('/vendor/')) return next();
+      const localPath = resolve(import.meta.dirname, 'public', req.url.split('?')[0].slice(1));
+      if (!fs.existsSync(localPath)) return next();
+      const ext = localPath.split('.').pop();
+      const mime = (ext === 'mjs' || ext === 'js')
+        ? 'application/javascript; charset=utf-8'
+        : 'application/octet-stream';
+      res.setHeader('Content-Type', mime);
+      res.end(fs.readFileSync(localPath));
+    });
+  },
+};
+
 export default defineConfig({
+  plugins: [serveVendorModules],
   // Racine = ce dossier /web. Les assets publics (avatars, modèles ONNX,
   // animations FBX, HDRI…) vivent dans /web/public et sont copiés tels quels.
   root: '.',
@@ -29,8 +53,9 @@ export default defineConfig({
     port: 5173,
     open: false,
   },
-  // Three.js est volumineux : on le pré-bundle pour un dev rapide.
+  // Three.js est vendorisé dans public/vendor/three/ et résolu via importmap
+  // au runtime — Vite ne doit pas le pré-bundler depuis node_modules.
   optimizeDeps: {
-    include: ['three'],
+    exclude: ['three'],
   },
 });
