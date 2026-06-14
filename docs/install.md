@@ -8,8 +8,9 @@ réseau n'est nécessaire. Cette page regroupe ces téléchargements uniques.
 
 | Modèle                 | Fonctionnalité | Taille indicative | Obligatoire ?                |
 |------------------------|----------------|-------------------|------------------------------|
-| Avatar RPM (GLB)       | F1.1 (avatar)  | ~5–15 Mo          | requis pour l'avatar 3D      |
-| TalkingHead + Three.js | F1.1 (avatar)  | ~2 Mo (vendorisé) | requis pour l'avatar 3D      |
+| Avatar RPM (GLB)       | F1.1 (avatar)  | ~5–15 Mo          | requis si `format: glb`      |
+| TalkingHead + Three.js | F1.1 (avatar)  | ~2 Mo (vendorisé) | requis si `format: glb`      |
+| Avatar VRM (1.0)       | F1.1 (avatar)  | ~5–15 Mo          | requis si `format: vrm`      |
 | Kokoro TTS (FR)        | F2.1 (voix)    | ~350 Mo           | recommandé (repli dispo)     |
 | piper-tts (fr_FR)      | F2.1 (repli)   | ~60 Mo            | optionnel                    |
 | faster-whisper         | F3.2 (écoute)  | ~150–500 Mo       | requis pour la voix entrante |
@@ -501,6 +502,33 @@ téléchargé complètement (taille attendue : ~5,7 Mo).
 > **Sans `jarvis.glb`**, Jarvis démarre quand même et affiche un message
 > explicatif avec la scène 3D de démonstration. La voix et la conversation
 > fonctionnent normalement.
+
+---
+
+## Avatar 3D — variante VRM (three-vrm)
+
+En alternative au GLB/TalkingHead, Jarvis peut animer un avatar **VRM 1.0**
+(expressions faciales, déplacements, lip-sync audio) via
+[@pixiv/three-vrm](https://github.com/pixiv/three-vrm), déjà installé en
+dépendance. Avantage : on peut **créer/personnaliser** son avatar hors-ligne
+avec **VRoid Studio** (readyplayer.me étant hors service).
+
+Bascule le moteur dans [web/src/config.js](../web/src/config.js) :
+
+```js
+avatar: { format: 'vrm', vrmUrl: '/avatars/jarvis.vrm', ... }
+```
+
+Récupère un VRM d'exemple pour démarrer :
+
+```powershell
+Invoke-WebRequest `
+  -Uri "https://raw.githubusercontent.com/pixiv/three-vrm/dev/packages/three-vrm/examples/models/VRM1_Constraint_Twist_Sample.vrm" `
+  -OutFile "web\public\avatars\jarvis.vrm"
+```
+
+Procédure complète (VRoid Studio, expressions requises, mapping des
+fonctionnalités) : **[docs/vrm.md](vrm.md)**.
 
 ---
 

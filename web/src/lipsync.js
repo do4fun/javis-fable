@@ -49,10 +49,17 @@ export class LipSync {
     const f32 = decodePcmBase64(p.audio);
     const sr = p.sample_rate || 24000;
 
-    // Voie principale uniquement si TalkingHead est chargé ET que les timings
-    // sont présents. Sans avatar (module ou GLB absent), on passe directement
-    // en fallback Web Audio pour que l'audio soit toujours joué.
-    if (Array.isArray(p.words) && p.words.length > 0 && this.avatar.ready) {
+    // Voie principale (TalkingHead.speakAudio) uniquement si l'avatar est
+    // chargé, expose le calage mots→visèmes ET fournit des timings. La voie
+    // VRM (avatar.audioLipsync=true) n'a pas de speakAudio : on passe par le
+    // fallback Web Audio qui pilote les visèmes par analyse du signal. Sans
+    // avatar (module/GLB absent), idem : on garantit la lecture de l'audio.
+    const usePrimary =
+      !this.avatar.audioLipsync &&
+      Array.isArray(p.words) &&
+      p.words.length > 0 &&
+      this.avatar.ready;
+    if (usePrimary) {
       await this._playPrimary(f32, sr, p.words);
     } else {
       await this._playFallback(f32, sr);

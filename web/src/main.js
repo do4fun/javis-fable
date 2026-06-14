@@ -9,6 +9,7 @@
 
 import { Scene } from './scene.js';
 import { AvatarManager } from './avatar.js';
+import { VRMAvatarManager } from './vrm/avatarVRM.js';
 import { JarvisSocket } from './ws.js';
 import { LipSync } from './lipsync.js';
 import { LifeEngine } from './life.js';
@@ -100,7 +101,12 @@ function showBootError(message) {
 }
 
 // --- Chargement de l'avatar ----------------------------------------------
-const avatar = new AvatarManager(avatarEl, updateBoot);
+// Moteur choisi par config.avatar.format : 'vrm' (three-vrm) ou 'glb'
+// (TalkingHead). Les deux exposent la même API interne.
+const useVRM = config.avatar.format === 'vrm';
+const avatar = useVRM
+  ? new VRMAvatarManager(avatarEl, updateBoot)
+  : new AvatarManager(avatarEl, updateBoot);
 const lipsync = new LipSync(avatar);
 const life = new LifeEngine(avatar);
 const emotions = new EmotionEngine(avatar);
@@ -211,33 +217,42 @@ window.jarvis = {
 async function boot_() {
   rafId = requestAnimationFrame(frame); // démarre la scène de repli
 
-  const result = await avatar.load(config.avatar.glbUrl);
+  const result = await avatar.load(
+    useVRM ? config.avatar.vrmUrl : config.avatar.glbUrl
+  );
 
   if (result.ok) {
     avatarActive = true;
     document.body.classList.add('avatar-active');
     life.start(); // vie autonome : regard, saccades, gestes ambiants
     // Décor de F1.2 dans la scène interne de TalkingHead (best-effort).
-    try {
-      const head = avatar.head;
-      if (head?.scene) {
-        avatarEnv = new Environment(head.scene, head.renderer || null);
-        avatarEnv.mountDebug();
+    // En VRM, le moteur fournit son propre éclairage contrôlé (MToon) : on
+    // n'applique pas le décor 3 points pour éviter le sur-éclairage.
+    if (!useVRM) {
+      try {
+        const head = avatar.head;
+        if (head?.scene) {
+          avatarEnv = new Environment(head.scene, head.renderer || null);
+          avatarEnv.mountDebug();
+        }
+      } catch (err) {
+        console.warn('[env] décor avatar non appliqué :', err.message);
       }
-    } catch (err) {
-      console.warn('[env] décor avatar non appliqué :', err.message);
     }
     hideBoot();
   } else {
     // Repli : on garde la scène placeholder visible et on explique l'erreur.
     showBootError(
-      result.reason === 'glb_missing'
-        ? 'Avatar non trouvé. Place jarvis.glb dans web/public/avatars/ ' +
-            '(voir docs/avatar.md). Scène de démonstration affichée.'
-        : result.reason === 'module_missing'
-          ? 'Moteur TalkingHead non vendorisé. Voir docs/avatar.md. ' +
-            'Scène de démonstration affichée.'
-          : 'Avatar indisponible. Scène de démonstration affichée.'
+      result.reason === 'vrm_missing'
+        ? 'Avatar VRM non trouvé. Place jarvis.vrm dans web/public/avatars/ ' +
+            '(voir docs/vrm.md). Scène de démonstration affichée.'
+        : result.reason === 'glb_missing'
+          ? 'Avatar non trouvé. Place jarvis.glb dans web/public/avatars/ ' +
+              '(voir docs/avatar.md). Scène de démonstration affichée.'
+          : result.reason === 'module_missing'
+            ? 'Moteur TalkingHead non vendorisé. Voir docs/avatar.md. ' +
+              'Scène de démonstration affichée.'
+            : 'Avatar indisponible. Scène de démonstration affichée.'
     );
     // On laisse le message visible quelques secondes puis on dévoile la scène.
     setTimeout(hideBoot, 4000);

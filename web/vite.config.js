@@ -54,8 +54,14 @@ export default defineConfig({
     open: false,
   },
   // Three.js est vendorisé dans public/vendor/three/ et résolu via importmap
-  // au runtime — Vite ne doit pas le pré-bundler depuis node_modules.
+  // au runtime (voie TalkingHead) — Vite ne doit pas le pré-bundler.
   optimizeDeps: {
     exclude: ['three'],
+  },
+  // La voie VRM (three-vrm) et la scène de repli importent 'three' depuis
+  // node_modules. On dédoublonne pour garantir UNE seule instance de three
+  // partagée (sinon erreurs de type/instanceof entre modules).
+  resolve: {
+    dedupe: ['three'],
   },
 });

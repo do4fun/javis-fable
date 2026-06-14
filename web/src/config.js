@@ -30,13 +30,24 @@ export const config = {
     keyIntensity: 1.1,
   },
 
-  // Avatar (F1.1) : TalkingHead + Ready Player Me, 100 % local.
+  // Avatar (F1.1) : deux moteurs interchangeables, 100 % local.
+  //  - 'glb' : TalkingHead + Ready Player Me (squelette Mixamo, visèmes Oculus) ;
+  //  - 'vrm' : @pixiv/three-vrm (format VRM 1.0, expressions natives).
+  // Le moteur est choisi par `format`. Les deux exposent la même API interne.
   avatar: {
+    format: 'vrm', // 'glb' | 'vrm'
+
+    // --- Voie GLB / TalkingHead (F1.1) ---
     // GLB déposé localement (cf. /docs/avatar.md). Jamais d'URL readyplayer.me.
     glbUrl: '/avatars/jarvis.glb',
     // Module TalkingHead vendorisé (import dynamique). Voir /web/vendor.
     // Les modules compagnons (lipsync-fr, dynamicbones…) sont dans le même dossier.
     modulePath: '/vendor/talkinghead/talkinghead.mjs',
+
+    // --- Voie VRM / three-vrm ---
+    // Fichier VRM 1.0 déposé localement (cf. /docs/vrm.md).
+    vrmUrl: '/avatars/jarvis.vrm',
+
     // Humeur initiale et langue de lip-sync (français).
     mood: 'neutral',
     lipsyncLang: 'fr',
