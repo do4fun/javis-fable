@@ -5,29 +5,50 @@ de met4citizen pour animer un avatar **Ready Player Me** (RPM) corps entier au
 format **GLB**. Contrainte : **aucune URL `readyplayer.me` ni CDN à l'exécution**
 — le GLB et le module TalkingHead sont déposés **en local**.
 
-## 1. Créer et exporter l'avatar RPM
+## 1. Obtenir le GLB de l'avatar
 
-1. Crée ton avatar sur <https://readyplayer.me> (corps entier / *full body*).
-2. Récupère l'URL du GLB (elle finit par `.glb`).
-3. **Indispensable :** ajoute les morph targets ARKit + visèmes Oculus en
-   suffixant l'URL d'export avec ces paramètres :
+> ⚠️ **readyplayer.me est hors service** (racheté par Netflix, site inaccessible).
+> Utilise le GLB open-source du dépôt officiel **readyplayerme/visage** à la place.
 
-   ```
-   https://models.readyplayer.me/<ID>.glb?morphTargets=ARKit,Oculus%20Visemes&textureAtlas=1024&pose=A&lod=0
-   ```
+### Option A — GLB pré-construit (recommandé)
 
-   - `morphTargets=ARKit,Oculus Visemes` → blendshapes du visage + visèmes ;
-   - `textureAtlas=1024` → atlas de textures (perf) ;
-   - `pose=A` → pose en A (attendue par TalkingHead) ;
-   - `lod=0` → pleine résolution (baisse à 1/2 pour le mobile bas de gamme).
+Le dépôt [readyplayerme/visage](https://github.com/readyplayerme/visage) contient
+un fichier `half-body.glb` (demi-corps, 5,7 Mo) qui inclut déjà tous les morph
+targets ARKit + visèmes Oculus nécessaires à TalkingHead.
 
-4. Télécharge le fichier **une seule fois** et dépose-le ici :
+**PowerShell :**
 
-   ```
-   web/public/avatars/jarvis.glb
-   ```
+```powershell
+# Depuis la racine du projet
+Invoke-WebRequest `
+  -Uri "https://raw.githubusercontent.com/readyplayerme/visage/main/public/half-body.glb" `
+  -OutFile "web\public\avatars\jarvis.glb"
+```
 
-   Ce fichier n'est **pas** versionné (cf. `web/.gitignore`).
+**Unix/macOS :**
+
+```bash
+mkdir -p web/public/avatars
+curl -L \
+  "https://raw.githubusercontent.com/readyplayerme/visage/main/public/half-body.glb" \
+  -o web/public/avatars/jarvis.glb
+```
+
+### Option B — Cloner et builder visage (personnalisation)
+
+Si tu veux personnaliser l'apparence (couleur de peau, cheveux…) :
+
+```bash
+git clone https://github.com/readyplayerme/visage.git
+cd visage && npm install && npm run dev
+# Exporte le GLB depuis l'interface, puis :
+cp public/half-body.glb ../web/public/avatars/jarvis.glb
+```
+
+> Le GLB doit se trouver ici (chemin configuré dans `web/src/config.js`) :
+> `web/public/avatars/jarvis.glb`
+>
+> Ce fichier n'est **pas** versionné (cf. `web/.gitignore`).
 
 ## 2. Vendoriser le module TalkingHead (hors-ligne)
 

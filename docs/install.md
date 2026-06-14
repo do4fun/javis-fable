@@ -452,59 +452,41 @@ make check
 
 ## Avatar 3D — Ready Player Me + TalkingHead (F1.1)
 
-L'avatar est un fichier GLB exporté depuis Ready Player Me avec les blendshapes
+L'avatar est un fichier GLB au format Ready Player Me avec les blendshapes
 ARKit (expressions) et les visèmes Oculus (lip-sync). TalkingHead et Three.js
 sont déjà **vendorisés dans le dépôt** (`web/vendor/`) — aucune action requise
 de ce côté.
 
-### Étape 1 — Créer l'avatar sur Ready Player Me
+> ⚠️ **readyplayer.me est hors service** (racheté par Netflix). Utilise le GLB
+> open-source fourni dans le dépôt officiel [readyplayerme/visage](https://github.com/readyplayerme/visage).
 
-1. Va sur <https://readyplayer.me> et crée un compte (gratuit) ou continue en
-   invité.
-2. Choisis **"Full Body"** (corps entier) — pas *Half Body* : TalkingHead
-   requiert le squelette complet pour les animations.
-3. Personnalise l'apparence à ton goût, puis clique **"Done"**.
-4. Sur la page finale, copie l'**ID** de l'avatar (24 caractères dans l'URL,
-   entre le dernier `/` et `.glb`).
+### Étape 1 — Télécharger le GLB pré-construit
 
-### Étape 2 — Télécharger le GLB avec les bons paramètres
+Le fichier `half-body.glb` du dépôt `readyplayerme/visage` contient tous les
+morph targets requis (15 visèmes Oculus + 52 blendshapes ARKit, squelette
+complet).
 
-L'URL d'export doit inclure les morph targets ARKit + visèmes Oculus.
-Remplace `<TON_ID>` par l'ID copié à l'étape précédente :
-
-```text
-https://models.readyplayer.me/<TON_ID>.glb?morphTargets=ARKit,Oculus%20Visemes&textureAtlas=1024&pose=A&lod=0
-```
-
-| Paramètre                          | Rôle                                                  |
-|------------------------------------|-------------------------------------------------------|
-| `morphTargets=ARKit,Oculus Visemes`| 52 blendshapes ARKit + 15 visèmes Oculus (lip-sync)   |
-| `textureAtlas=1024`                | Atlas de textures fusionné (performance)              |
-| `pose=A`                           | Pose en A requise par TalkingHead pour les animations |
-| `lod=0`                            | Pleine résolution (`lod=1` si fichier trop lourd)     |
-
-**Téléchargement via PowerShell (Windows) :**
+**PowerShell (Windows) :**
 
 ```powershell
+# Depuis la racine du projet
 Invoke-WebRequest `
-  -Uri "https://models.readyplayer.me/<TON_ID>.glb?morphTargets=ARKit,Oculus%20Visemes&textureAtlas=1024&pose=A&lod=0" `
+  -Uri "https://raw.githubusercontent.com/readyplayerme/visage/main/public/half-body.glb" `
   -OutFile "web\public\avatars\jarvis.glb"
 ```
 
-**Téléchargement via curl (Unix) :**
+**Unix/macOS :**
 
 ```bash
-curl -L -o web/public/avatars/jarvis.glb \
-  "https://models.readyplayer.me/<TON_ID>.glb?morphTargets=ARKit,Oculus%20Visemes&textureAtlas=1024&pose=A&lod=0"
+mkdir -p web/public/avatars
+curl -L \
+  "https://raw.githubusercontent.com/readyplayerme/visage/main/public/half-body.glb" \
+  -o web/public/avatars/jarvis.glb
 ```
 
-Ou ouvre l'URL dans un navigateur et enregistre le fichier dans
-`web/public/avatars/jarvis.glb`.
+> Le fichier `jarvis.glb` (~5,7 Mo) n'est **pas versionné** (cf. `web/.gitignore`).
 
-> Le fichier `jarvis.glb` n'est **pas versionné** (cf. `web/.gitignore`) — il
-> reste sur ta machine uniquement.
-
-### Étape 3 — Vérification
+### Étape 2 — Vérification
 
 Lance le serveur (`make start` ou `.\start.ps1`), ouvre la console du navigateur
 et vérifie :
@@ -513,9 +495,8 @@ et vérifie :
 [avatar] Tous les blendshapes requis sont présents.
 ```
 
-Si tu vois des blendshapes manquants, le GLB a été exporté sans les paramètres
-`ARKit,Oculus Visemes` — renouvelle le téléchargement avec l'URL complète
-ci-dessus.
+Si tu vois des blendshapes manquants, vérifie que le fichier a bien été
+téléchargé complètement (taille attendue : ~5,7 Mo).
 
 > **Sans `jarvis.glb`**, Jarvis démarre quand même et affiche un message
 > explicatif avec la scène 3D de démonstration. La voix et la conversation
