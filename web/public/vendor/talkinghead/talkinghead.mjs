@@ -1255,13 +1255,13 @@ class TalkingHead {
       }
     });
 
-    // Check the gltf
-    const required = [];
-    this.posePropNames.forEach( x => required.push( x.split('.')[0] ) );
-    required.forEach( x => {
-      if ( !gltf.scene.getObjectByName(x) ) {
-        throw new Error('Avatar object ' + x + ' not found');
-      }
+    // Check the gltf — filter to bones that actually exist (half-body avatars
+    // lack leg/arm bones; we degrade gracefully instead of throwing).
+    this.posePropNames = this.posePropNames.filter( x => {
+      const boneName = x.split('.')[0];
+      const found = !!gltf.scene.getObjectByName(boneName);
+      if ( !found ) console.warn('TalkingHead: bone "' + boneName + '" absent, animation limitée.');
+      return found;
     });
 
     this.stop();
@@ -4139,7 +4139,7 @@ class TalkingHead {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(pointer,this.camera);
     const intersects = raycaster.intersectObject(this.armature);
-    if ( intersects.length > 0 ) {
+    if ( intersects.length > 0 && this.objectLeftArm && this.objectRightArm ) {
       const target = intersects[0].point;
       const LeftArmPos = new THREE.Vector3();
       const RightArmPos = new THREE.Vector3();
