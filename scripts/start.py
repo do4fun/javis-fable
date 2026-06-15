@@ -12,6 +12,7 @@ Usage : python scripts/start.py [--no-browser] [--port 8000]
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -89,22 +90,46 @@ def ensure_build() -> None:
     ok(f"Frontend buildé. (logs → {LOG_FRONTEND})")
 
 
-def check_ollama() -> None:
+def check_llm() -> None:
+    """Vérifie le provider LLM configuré et la présence de ses prérequis."""
+    import yaml  # disponible dans le venv (pyyaml)
+    cfg_path = SERVER / "config.yaml"
     try:
-        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2):
-            ok("Ollama actif.")
-            return
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
     except Exception:
-        warn(
-            "Ollama injoignable. Installe-le (https://ollama.com), lance le service "
-            "et `ollama pull llama3.1:8b`. En attendant, Jarvis utilise un cerveau de repli."
-        )
+        warn("config.yaml illisible — vérification LLM ignorée.")
+        return
+
+    provider = (cfg.get("llm") or {}).get("provider", "ollama")
+
+    if provider == "claude":
+        key = os.environ.get("ANTHROPIC_API_KEY") or (cfg.get("llm") or {}).get("api_key", "")
+        if key:
+            ok(f"LLM : Claude ({(cfg.get('llm') or {}).get('model', '?')}) — clé API présente.")
+        else:
+            fail(
+                "LLM : clé API Anthropic manquante !\n"
+                "  → Définis la variable d'environnement ANTHROPIC_API_KEY avant de lancer :\n"
+                "       $env:ANTHROPIC_API_KEY = 'sk-ant-...'\n"
+                "  → Ou ajoute  api_key: 'sk-ant-...'  dans server/config.yaml (section llm).\n"
+                "  → Jarvis tournera en MODE DÉGRADÉ (réponses statiques) jusqu'à ce que la clé soit fournie."
+            )
+    else:  # ollama
+        try:
+            with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2):
+                ok("LLM : Ollama actif.")
+        except Exception:
+            warn(
+                "LLM : Ollama injoignable. Installe-le (https://ollama.com), lance le service "
+                "et `ollama pull llama3.1:8b`. En attendant, Jarvis utilise un cerveau de repli."
+            )
 
 
 def check_models() -> None:
     checks = {
         "VAD Silero (web/public/models/silero_vad.onnx)": WEB / "public" / "models" / "silero_vad.onnx",
-        "Avatar (web/public/avatars/jarvis.glb)": WEB / "public" / "avatars" / "jarvis.glb",
+        "Avatar GLB (web/public/avatars/jarvis.glb)": WEB / "public" / "avatars" / "jarvis.glb",
+        "Avatar VRM (web/public/avatars/jarvis.vrm)": WEB / "public" / "avatars" / "jarvis.vrm",
     }
     for label, path in checks.items():
         (ok if path.exists() else warn)(
@@ -138,7 +163,7 @@ def main() -> None:
         sys.exit(1)
     py = ensure_venv()
     ensure_build()
-    check_ollama()
+    check_llm()
     check_models()
     launch(py, args.port, not args.no_browser)
 

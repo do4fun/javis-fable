@@ -39,7 +39,7 @@ export const config = {
 
     // --- Voie GLB / TalkingHead (F1.1) ---
     // GLB déposé localement (cf. /docs/avatar.md). Jamais d'URL readyplayer.me.
-    glbUrl: '/avatars/jarvis.glb',
+    // glbUrl: '/avatars/jarvis.glb',
     // Module TalkingHead vendorisé (import dynamique). Voir /web/vendor.
     // Les modules compagnons (lipsync-fr, dynamicbones…) sont dans le même dossier.
     modulePath: '/vendor/talkinghead/talkinghead.mjs',

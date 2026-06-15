@@ -17,6 +17,9 @@ soundfile==0.13.0
 # piper-tts>=1.2.0     # (optionnel) repli voix fr_FR
 # faster-whisper>=1.0  # (optionnel) STT FR (F3.2) — voir docs/install.md
 
+# LLM cloud (F4.1 — provider Claude)
+anthropic>=1.30.0      # SDK Anthropic (AsyncAnthropic + streaming)
+
 # Tests & qualité
 pytest==8.3.4
 pytest-asyncio==0.25.0

@@ -213,10 +213,27 @@ class Pipeline:
 
         await self.set_state(ws, State.THINKING)
 
+        # Ponctuation terminale → flush immédiat.
+        # Pause (virgule, point-virgule, deux-points) → flush si assez de texte
+        #   accumulé pour que le fragment soit intelligible.
+        # Débordement → flush de sécurité au-delà de MAX_CHUNK pour éviter les
+        #   longs silences sur des phrases sans ponctuation.
+        _TERMINAL = frozenset(".!?…")
+        _PAUSE    = frozenset(",;:")
+        _MIN_PAUSE = 55   # chars minimum avant de couper sur une pause
+        _MAX_CHUNK = 145  # chars : flush inconditionnel (dernier recours)
+
         async def flush_sentence(force: bool = False) -> None:
             chunk = state["sentence"].strip()
-            if not chunk or (not force and chunk[-1] not in ".!?…"):
+            if not chunk:
                 return
+            if not force:
+                last = chunk[-1]
+                is_terminal = last in _TERMINAL
+                is_pause    = last in _PAUSE and len(chunk) >= _MIN_PAUSE
+                is_overflow = len(chunk) >= _MAX_CHUNK
+                if not (is_terminal or is_pause or is_overflow):
+                    return
             state["sentence"] = ""
             if not state["spoke"]:
                 turn.mark("first_token")

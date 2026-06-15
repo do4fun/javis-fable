@@ -108,10 +108,11 @@ body:not([data-theme]) {
 /* --- Contrôles --- */
 #hud-controls {
   position: fixed;
-  bottom: calc(1.1rem + env(safe-area-inset-bottom));
-  left: 50%;
-  transform: translateX(-50%);
+  left: calc(1rem + env(safe-area-inset-left));
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 #hud-controls button {
@@ -126,7 +127,7 @@ body:not([data-theme]) {
   transition: transform 0.15s ease;
 }
 #hud-controls button:hover {
-  transform: translateY(-2px);
+  transform: translateX(-2px);
 }
 
 /* --- Saisie clavier --- */
@@ -234,8 +235,17 @@ body:not([data-theme]) {
   }
 }
 
-/* Petits écrans : la saisie passe sous les contrôles. */
+/* Petits écrans : la saisie passe en bas pleine largeur. */
 @media (max-width: 480px) {
+  #hud-controls {
+    top: auto;
+    bottom: calc(1.1rem + env(safe-area-inset-bottom));
+    transform: none;
+    flex-direction: row;
+  }
+  #hud-controls button:hover {
+    transform: translateY(-2px);
+  }
   #text-input {
     right: 50%;
     transform: translateX(50%);

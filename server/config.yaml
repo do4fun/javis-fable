@@ -32,12 +32,28 @@ tts: # F2.1
 
 
 stt: # F3.2
-  model: "small"       # tiny | base | small | medium | large-v3
+  model: "base"        # tiny | base | small | medium | large-v3
+  # "base" (74M) est ~3× plus rapide que "small" (244M) pour une qualité
+  # correcte en français. Repasse à "small" si la transcription est trop imprécise.
   language: "fr"
 
 
 llm:  # F4.1
-  host: "http://localhost:11434"   # URL d'Ollama (défaut)
-  model: "llama3.1:8b"            # doit correspondre au modèle téléchargé
+  # Fournisseur LLM actif : "claude" (Anthropic API) | "ollama" (local)
+  provider: "claude"
+
+  # ── Claude (Anthropic API) ────────────────────────────────────────────────
+  # Modèle le plus avancé disponible. Obtenir une clé sur console.anthropic.com
+  # La clé est lue depuis la variable d'env ANTHROPIC_API_KEY (priorité), ou
+  # directement ici. Ne jamais committer une clé réelle dans le dépôt.
+  model: "claude-sonnet-4-6"
+  api_key: ""                          # laisser vide si ANTHROPIC_API_KEY est défini
+ 
+  # ── Ollama (100 % local, aucune clé) ──────────────────────────────────────
+  # Pour basculer sur Ollama : passe provider à "ollama" et adapte host/model.
+  host: "http://localhost:11434"  # URL d'Ollama
+  # model: "llama3.1:8b"         # modèle Ollama à utiliser
+
+  # ── Commun ────────────────────────────────────────────────────────────────
   timeout: 60                     # secondes avant abandon de la génération
   tutoiement: true                # Jarvis tutoie l'utilisateur

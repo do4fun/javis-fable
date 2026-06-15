@@ -7,6 +7,7 @@ dist/
 # et /docs/install.md pour la procédure de récupération locale).
 public/avatars/*.glb
 public/avatars/*.vrm
+public/avatars/*.fbx
 public/anims/*.fbx
 public/env/*.hdr
 public/models/*.onnx*

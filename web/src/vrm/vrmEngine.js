@@ -90,7 +90,8 @@ export class VRMEngine {
 
     // Optimisations recommandées (selon la version de three-vrm).
     try { VRMUtils.removeUnnecessaryVertices?.(gltf.scene); } catch { /* opt. */ }
-    try { VRMUtils.combineSkeletons?.(gltf.scene); } catch { /* opt. */ }
+    // combineSkeletons omis : peut rompre le mapping humanoid→raw bones dans
+    // certains exports VRoid, causant des poses T-pose permanentes.
     try { VRMUtils.removeUnnecessaryJoints?.(gltf.scene); } catch { /* opt. */ }
 
     // VRM 0.x regarde +Z (dos à la caméra) : on le retourne. VRM 1.0 : rien.
@@ -110,6 +111,8 @@ export class VRMEngine {
     // positions monde (tête) soient valides avant de cadrer la caméra.
     vrm.update(0);
     this.scene.updateMatrixWorld(true);
+
+    console.info(`[vrm] version détectée : VRM ${isVRM0 ? '0.x' : '1.0'}`);
 
     this._cacheBones();
     this._frameCamera();
@@ -146,19 +149,54 @@ export class VRMEngine {
     window.addEventListener('resize', this._onResize);
   }
 
-  // Cadre tête-épaules (l'avatar mesure ~1.5 m, tête vers 1.4 m).
+  // Cadre l'avatar au chargement.
+  //
+  // Contraintes :
+  //  - avatar occupe au plus ~45% de la hauteur d'écran (fillFactor) ;
+  //  - la caméra orbite autour de la TÊTE avec une élévation de ELEV_DEG degrés
+  //    → elle surplombe légèrement l'avatar, regard dirigé vers la tête ;
+  //  - adaptatif : fonctionne quelle que soit la taille/proportion du modèle.
   _frameCamera() {
-    const head = this.vrm.humanoid?.getNormalizedBoneNode('head');
-    const headPos = new THREE.Vector3(0, 1.4, 0);
-    if (head) head.getWorldPosition(headPos);
-    this._headY = headPos.y;
+    const FILL_FACTOR = 0.45; // avatar ≤ 45% de la hauteur d'écran
+    const ELEV_DEG   = 18;    // degrés d'élévation (surplomb)
 
-    // Cible de cadrage : un peu sous la tête (haut du buste).
-    const target = new THREE.Vector3(headPos.x, headPos.y - 0.18, headPos.z);
-    // Caméra légèrement au-dessus, à ~1,2 m → plan tête-épaules.
-    this.camera.position.set(target.x, headPos.y - 0.02, target.z + 1.2);
-    this.camera.lookAt(target);
-    this._camTarget = target;
+    // Bounding box de la scène complète (mesh + spring bones).
+    const box  = new THREE.Box3().setFromObject(this.vrm.scene);
+    const size = box.getSize(new THREE.Vector3());
+
+    // Pivot de la caméra = position monde de la tête.
+    const headBone = this.vrm.humanoid?.getNormalizedBoneNode('head');
+    const pivot = new THREE.Vector3();
+    if (headBone) headBone.getWorldPosition(pivot);
+    else pivot.set(0, box.max.y - size.y * 0.08, 0);
+    this._headY = pivot.y;
+
+    // Recul calculé depuis la bounding box de l'avatar entier,
+    // mis à l'échelle pour que l'avatar tienne dans FILL_FACTOR de l'écran.
+    // distV : contrainte verticale (FOV déclaré).
+    // distH : contrainte horizontale (FOV déduit de l'aspect ratio).
+    const halfFovV = (this.camera.fov / 2) * DEG2RAD;
+    const halfFovH = Math.atan(Math.tan(halfFovV) * this.camera.aspect);
+    const distV = (size.y / 2) / Math.tan(halfFovV) / FILL_FACTOR;
+    const distH = (size.x / 2) / Math.tan(halfFovH) / FILL_FACTOR;
+    const dist  = Math.max(distV, distH);
+
+    // Position de la caméra : orbite autour du pivot (tête) avec élévation.
+    // L'axe de recul reste Z+ ; l'élévation monte sur Y tout en reculant sur Z.
+    const elev = ELEV_DEG * DEG2RAD;
+    this.camera.position.set(
+      pivot.x,
+      pivot.y + dist * Math.sin(elev),   // monte sur Y
+      pivot.z + dist * Math.cos(elev)    // recule sur Z
+    );
+    // Regard pointé vers la tête (pivot de l'orbite).
+    this.camera.lookAt(pivot);
+    this._camTarget = pivot.clone();
+
+    console.info(
+      `[vrm] caméra : avatar ${size.x.toFixed(2)}×${size.y.toFixed(2)} m` +
+      ` → recul ${dist.toFixed(2)} m, élévation ${ELEV_DEG}°, pivot tête Y=${pivot.y.toFixed(2)}`
+    );
   }
 
   _cacheBones() {
@@ -188,16 +226,71 @@ export class VRMEngine {
   }
 
   // VRM est en T-pose ; on descend les bras pour une pose « bras le long du
-  // corps » plus naturelle au repos (rotation autour de Z des upperArms).
+  // corps » plus naturelle au repos.
+  //
+  // Le signe de la rotation Z dépend de la version VRM ET de si rotateVRM0 a
+  // été appliqué (pivot 180° autour de Y qui inverse l'axe Z local).
+  // Plutôt que de deviner, on teste empiriquement : on applique +Z, on mesure
+  // si l'avant-bras gauche monte ou descend, puis on corrige le signe.
   _restArmFix() {
-    const L = this._bones.leftUpperArm;
-    const R = this._bones.rightUpperArm;
-    if (L) { L.rotation.z = 70 * DEG2RAD; this._rest.leftUpperArm = L.rotation.clone(); }
-    if (R) { R.rotation.z = -70 * DEG2RAD; this._rest.rightUpperArm = R.rotation.clone(); }
+    const L  = this._bones.leftUpperArm;
+    const R  = this._bones.rightUpperArm;
     const Ll = this._bones.leftLowerArm;
     const Rl = this._bones.rightLowerArm;
-    if (Ll) { Ll.rotation.y = -0.2; this._rest.leftLowerArm = Ll.rotation.clone(); }
-    if (Rl) { Rl.rotation.y = 0.2; this._rest.rightLowerArm = Rl.rotation.clone(); }
+
+    if (!L || !R) {
+      const missing = ['leftUpperArm', 'rightUpperArm'].filter(k => !this._bones[k]);
+      console.warn('[vrm] bras non trouvés dans le squelette :', missing, '→ T-pose conservée.');
+      return;
+    }
+
+    // ── Auto-détection du signe Z ─────────────────────────────────────────────
+    // Bone de référence : avant-bras gauche (raw), car il bouge beaucoup
+    // quand le haut du bras tourne.
+    const testBone = this.vrm.humanoid?.getRawBoneNode('leftLowerArm')
+                  || this.vrm.humanoid?.getRawBoneNode('leftHand');
+    let s = 1; // signe par défaut
+
+    if (testBone) {
+      const v = new THREE.Vector3();
+      const preY = testBone.getWorldPosition(v).y;
+
+      // Tente +70° Z sur le bras normalisé gauche.
+      L.rotation.set(0, 0, 70 * DEG2RAD);
+      this.vrm.humanoid.update();           // normalized → raw bones
+      this.vrm.scene.updateMatrixWorld(true); // propage les matrices monde
+
+      const postY = testBone.getWorldPosition(v).y;
+
+      // Si l'avant-bras est monté (Δy > 0), +Z lève le bras → on inverse.
+      s = (postY > preY + 0.001) ? -1 : 1;
+      console.info(
+        `[vrm] auto-signe bras : Δy=${(postY - preY).toFixed(3)} m` +
+        ` → rotation Z = ${s > 0 ? '+' : '−'}70°`
+      );
+    } else {
+      // Repli heuristique si aucun raw bone trouvé.
+      const isVRM0 = this.vrm.meta?.metaVersion === '0' || this.vrm.meta?.specVersion === '0.0';
+      s = isVRM0 ? -1 : 1;
+      console.warn(`[vrm] leftLowerArm introuvable — repli heuristique VRM ${isVRM0 ? '0.x' : '1.0'}, signe=${s}`);
+    }
+
+    // ── Application de la pose finale ─────────────────────────────────────────
+    L.rotation.set(0, 0,  s * 70 * DEG2RAD);
+    R.rotation.set(0, 0, -s * 70 * DEG2RAD);
+    if (Ll) Ll.rotation.set(0, -0.2, 0);
+    if (Rl) Rl.rotation.set(0,  0.2, 0);
+
+    this._rest.leftUpperArm  = L.rotation.clone();
+    this._rest.rightUpperArm = R.rotation.clone();
+    if (Ll) this._rest.leftLowerArm  = Ll.rotation.clone();
+    if (Rl) this._rest.rightLowerArm = Rl.rotation.clone();
+
+    // Resync raw bones avec la pose finale (pour _frameCamera qui suit).
+    this.vrm.humanoid.update();
+    this.vrm.scene.updateMatrixWorld(true);
+
+    console.info('[vrm] pose repos des bras appliquée.');
   }
 
   _setupLookAt() {
@@ -235,20 +328,49 @@ export class VRMEngine {
     this._resetManagedExpr();
     try { this.onUpdate?.(dt); } catch (e) { console.warn('[vrm] onUpdate', e); }
 
-    // 2) Clignement automatique (cible blink, lissée comme une expression).
+    // 2) Clignement automatique.
     this._updateBlink(dt);
 
-    // 3) Os : repos + idle (respiration/sway) + regard + geste.
+    // 3) Os normalisés : repos + idle + regard + geste.
     this._updateBones(dt);
 
-    // 4) Applique les expressions (visèmes directs, reste lissé).
+    // 4) Expressions (visèmes directs, émotions lissées).
     this._applyExpressions(dt);
 
-    // 5) Spring bones, lookAt, contraintes.
+    // 5) Convertit les normalized bones → raw bones (sans spring ni contraintes).
+    //    On capture les quaternions bruts des bras AVANT que vrm.update()
+    //    puisse les écraser via nodeConstraintManager.
+    //    Note : le renderer utilise les RAW bones pour le skinning, pas les
+    //    normalized bones — c'est pourquoi on snapshote/restore les raw bones.
+    this.vrm.humanoid.update();
+    const armSnap = this._snapshotArms();
+
+    // 6) Spring bones, lookAt, contraintes VRM (+ second humanoid.update interne).
     this.vrm.update(dt);
 
-    // 6) Rendu.
+    // 7) Rétablit les bras (override de toute contrainte sur les raw bones).
+    this._restoreArms(armSnap);
+
+    // 8) Rendu.
     this.renderer.render(this.scene, this.camera);
+  }
+
+  // Capture les quaternions des RAW bones des bras (ceux lus par SkinnedMesh).
+  _snapshotArms() {
+    const snap = {};
+    for (const k of ['leftUpperArm', 'rightUpperArm', 'leftLowerArm', 'rightLowerArm']) {
+      const b = this.vrm.humanoid.getRawBoneNode(k);
+      if (b) snap[k] = b.quaternion.clone();
+    }
+    return snap;
+  }
+
+  // Restaure les quaternions des RAW bones après vrm.update().
+  _restoreArms(snap) {
+    for (const [k, q] of Object.entries(snap)) {
+      const b = this.vrm.humanoid.getRawBoneNode(k);
+      if (b) b.quaternion.copy(q);
+    }
   }
 
   // --- Expressions ----------------------------------------------------------
